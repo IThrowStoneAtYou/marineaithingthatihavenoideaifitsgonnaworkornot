@@ -184,13 +184,13 @@ function combat.pushBullet(npc,bullet,speed,iterations)
 	
 	if speed == nil or iterations == nil then -- changing this to default settings
 		speed = 20 -- 7 before / uses studs per sec
-		iterations = 20 -- if i recall, this is how precise
+		iterations = 20 -- if i recall, this is how precise the detections wwas???
 	end
 	
 	local params = RaycastParams.new()
 	params.FilterDescendantsInstances = {marine,workspace.Terrain,ignoreFolder}
+
 	local startPosition = barrel.WorldPosition
-	
 	local success,Error = pcall(function()
 		task.spawn(function()
 			while true do
@@ -354,6 +354,7 @@ function combat:Shoot(target)
 					break
 				end
 			end
+
 			task.wait(60/fireRate) -- actually converted into irl weapon RPM
 			self:SetMag(self:GetMag()-1)
 			
@@ -373,12 +374,15 @@ function combat:Shoot(target)
 			coroutine.resume(flashCoroutine)
 			
 			--bullet.CFrame = m4.CFrame * CFrame.new(0,0.2,-2.5) --z: 0.5
-			for i = 1,bulletsPerShot,1 do
+			for i = 1, bulletsPerShot, 1 do
 				local bulletCoroutine = coroutine.create(function()
 					local bullet = combat.getBullet()
-					runService.Heartbeat:Wait() --Give bullet time to render from barrel
+				--	runService.Heartbeat:Wait() --Give bullet time to render from barrel -- (me in the future: figure out this is useless)
+
 					combat:applySpread(bullet,barrel.WorldCFrame.LookVector)
-					runService.Heartbeat:Wait() --Give bullet time to render from barrel
+
+				--	runService.Heartbeat:Wait() --Give bullet time to render from barrel
+
 					combat.pushBullet(self, bullet, bulletSpeed, iterations)
 				end)
 				
@@ -430,7 +434,10 @@ function combat:ThrowGrenade()
 		self.Human.AutoRotate = false
 		for i = 1, 4 do
 			task.wait(0.1)
-			self.Root.CFrame = CFrame.lookAt(Vector3.new(self.Root.Position.X,self.Root.Position.Y,self.Root.Position.Z),Vector3.new(self:GetTarget().Position.X,self.Root.Position.Y,self:GetTarget().Position.Z))
+			self.Root.CFrame = CFrame.lookAt(
+				Vector3.new(self.Root.Position.X, self.Root.Position.Y, self.Root.Position.Z),
+				Vector3.new(self:GetTarget().Position.X,self.Root.Position.Y,self:GetTarget().Position.Z)
+			)
 		end
 		self.Human.AutoRotate = true
 		
@@ -514,7 +521,7 @@ function combat:Stab()
 		end
 		
 		local human = self:GetTarget().Parent.Humanoid
-		core.applyDamage(human,math.random(minKnifeDamage,maxKnifeDamage))
+		core.applyDamage(human,math.random(minKnifeDamage, maxKnifeDamage))
 		if human.Health <= 0 then
 			self:FindTarget()
 		end

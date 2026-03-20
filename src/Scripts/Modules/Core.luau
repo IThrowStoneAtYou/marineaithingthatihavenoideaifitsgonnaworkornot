@@ -115,8 +115,6 @@ function core.getHuman(instance)
 	return human
 end
 
-
-
 -- TODO: This needs to be fixed at some point
 function core.checkPotentialSight(target)
 	local raycastParams = RaycastParams.new()
@@ -132,9 +130,10 @@ function core.checkPotentialSight(target)
 	end
 end
 
-function core.raycast(origin,dir)
+function core.raycast(origin, dir)
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterDescendantsInstances = {marine}
+
 	local result = workspace:Raycast(origin,dir,raycastParams)
 	if result then
 		return true, result
@@ -147,6 +146,7 @@ local allies = {}
 local team = marine.Settings.Team.Value
 local attackPlayers = marine.Settings.AttackPlayers.Value
 local playerTeamsList = marine.Settings.PlayerTeams
+
 function core.isAlly(model)
 	--Check and see if they are on our team, if they are break the loop.
 	local isAlly = false
@@ -183,8 +183,9 @@ function core.isAlly(model)
 	return isAlly
 end
 
-function core.checkDirectPath(npc,target,ignoredInstance,origin)
+function core.checkDirectPath(npc, target, ignoredInstance, origin)
 	origin = origin or myHead.Position
+	
 	local dist = core.checkDist(origin,target.Position)
 	local dir = (target.Position - origin).Unit
 	local raycastParams = RaycastParams.new()

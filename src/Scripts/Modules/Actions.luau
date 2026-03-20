@@ -10,6 +10,7 @@ local modules = script.Parent
 local core = require(modules.Core)
 local formulas = require(modules.Formulas)
 
+-- references --
 local marine = script.Parent.Parent.Parent
 local myHuman = marine.Humanoid
 local myRoot = marine.HumanoidRootPart
@@ -50,13 +51,6 @@ local xAxisAttach = Instance.new("Attachment")
 xAxisAttach.Parent = workspace.Terrain
 xAxisAttach.CFrame = myRoot.CFrame
 
-local yAxisAttach = Instance.new("Attachment")
-yAxisAttach.Parent = workspace.Terrain
-yAxisAttach.CFrame = myRoot.CFrame
-
-bodyRotate.Attachment1 = yAxisAttach
-
-
 local m4Hinge = m4.HingeConstraint
 local m4HingeAttach = m4.HingeAttach1
 local torsoHingeAttach = myTorso.HingeAttach0
@@ -88,7 +82,7 @@ function actions:Crouch()
 end
 
 function actions:Stand()
-	
+
 	if self.lWeld then self.lWeld:Destroy() end
 	if self.rWeld then self.rWeld:Destroy() end
 	
@@ -114,27 +108,24 @@ function actions:Aim()
 	local offsetX = 0
 	local offsetY = 0
 	local offsetTS = core.tick() - 1
-	
+
 	local validTargetTS = core.tick()
 	local aimSwitchDelay = 1
-	
+
 	local checkSightTS = core.tick()
 	local checkSightDelay = 2
-	
-	local dist = core.checkDist(target,myTorso)
+
+	local dist = core.checkDist(target, myTorso)
 	local canSee = self:CheckSightToTarget()
 
 	while true do
 
-		
 		if not self:GetM4Equipped() and not self:GetReloading() then
 			break
 		elseif self:GetTarget() and target ~= self:GetTarget() then
 			if self:CheckSightToTarget() then
 				target = self:GetTarget()
 			else
-				-- The humanoidrootpart tends to fall through the earth when the human dies.
-				-- This makes it so we don't track it while it falls
 				target = {
 					Position = target.Position,
 					Velocity = Vector3.new()
@@ -144,8 +135,6 @@ function actions:Aim()
 			if core.tick() - validTargetTS > aimSwitchDelay then
 				break
 			else
-				-- The humanoidrootpart tends to fall through the earth when the human dies.
-				-- This makes it so we don't track it while it falls
 				target = {
 					Position = target.Position,
 					Velocity = Vector3.new()
@@ -155,10 +144,10 @@ function actions:Aim()
 			validTargetTS = core.tick()
 		end
 
-		if core.runAtTS("ActionsCheckDist",0.3) then
-			core.checkDist(target.Position,myTorso)
+		if core.runAtTS("ActionsCheckDist", 0.3) then
+			dist = core.checkDist(target.Position, myTorso)
 		end
-		
+
 		if core.runAtTS("ActionsCheckSightToTarget", 1) then
 			canSee = self:CheckSightToTarget()
 		end
@@ -170,54 +159,52 @@ function actions:Aim()
 		end
 
 		if not canSee and self.Root.Velocity.Magnitude > 3 and sightIndex <= 0 then
-
 			local walkPoint = self.Human.WalkToPoint
 			local myPos = self.Root.Position
-			local dir = (Vector3.new(walkPoint.X,0,walkPoint.Z) - Vector3.new(myPos.X,0,myPos.Z)).Unit * 20
-			aimPos = self.Root.Position + Vector3.new(0,1.5,0) + dir
+			local dir = (Vector3.new(walkPoint.X, 0, walkPoint.Z) - Vector3.new(myPos.X, 0, myPos.Z)).Unit * 20
+			aimPos = self.Root.Position + Vector3.new(0, 1.5, 0) + dir
 		else
-			aimPos = formulas.getAimVector3(self.Root, target, 700) --350
+			aimPos = formulas.getAimVector3(self.Root, target, 700)
 
-			-- Simulates variations in the aim like a real person would have.
 			if core.tick() - offsetTS > 0.5 then
 				offsetTS = core.tick()
 				offsetX = core.calcRandomOffset(self.Settings.M4.Accuracy.Value)
 				offsetY = core.calcRandomOffset(self.Settings.M4.Accuracy.Value)
-			end		
+			end
 
-			aimPos = aimPos:Lerp(aimPos + Vector3.new(offsetX, offsetY, 0),0.5)
-
+			aimPos = aimPos:Lerp(aimPos + Vector3.new(offsetX, offsetY, 0), 0.5)
 		end
 
-		local tilt = (self.Root.Position.Y - aimPos.Y) / (dist*0.04)
-		tilt = math.clamp(tilt,-45,45)
-		rootJoint.C0 = rootJointOrg * CFrame.fromEulerAnglesYXZ(math.rad(tilt),0,0)
-		lHip.C0 = lHipOrg * CFrame.fromEulerAnglesYXZ(0,0,math.rad(-tilt))
-		rHip.C0 = rHipOrg * CFrame.fromEulerAnglesYXZ(0,0,math.rad(tilt))
+		local tilt = (self.Root.Position.Y - aimPos.Y) / (dist * 0.04)
+		tilt = math.clamp(tilt, -45, 45)
+		rootJoint.C0 = rootJointOrg * CFrame.fromEulerAnglesYXZ(math.rad(tilt), 0, 0)
+		lHip.C0 = lHipOrg * CFrame.fromEulerAnglesYXZ(0, 0, math.rad(-tilt))
+		rHip.C0 = rHipOrg * CFrame.fromEulerAnglesYXZ(0, 0, math.rad(tilt))
 
-		xAxisAttach.WorldCFrame = CFrame.lookAt(self.M4.Position,aimPos)
-		self.M4.HingeConstraint.Attachment0.WorldCFrame = CFrame.new(self.M4.HingeConstraint.Attachment0.WorldPosition) * CFrame.fromEulerAnglesYXZ(math.rad(0),math.rad(self.Root.Orientation.Y),0)
+		-- Gun and head pitch via hinge
+		xAxisAttach.WorldCFrame = CFrame.lookAt(self.M4.Position, aimPos)
+		self.M4.HingeConstraint.Attachment0.WorldCFrame = CFrame.new(self.M4.HingeConstraint.Attachment0.WorldPosition) * CFrame.fromEulerAnglesYXZ(math.rad(0), math.rad(self.Root.Orientation.Y), 0)
 		self.M4.HingeConstraint.TargetAngle = xAxisAttach.Orientation.X
 		headHinge.TargetAngle = xAxisAttach.Orientation.X
 
-		torsoHingeAttach.Position = torsoHingAttachOrgPos + Vector3.new(0,tilt/90,0)
-
-		yAxisAttach.WorldCFrame = CFrame.lookAt(self.M4.Position,Vector3.new(
+		-- Body yaw via AlignOrientation directly
+		self.BodyRotate.CFrame = CFrame.new(myRoot.Position, Vector3.new(
 			aimPos.X,
-			self.Root.Position.Y,
+			myRoot.Position.Y,
 			aimPos.Z
 			))
 
+		torsoHingeAttach.Position = torsoHingAttachOrgPos + Vector3.new(0, tilt / 90, 0)
+
 		if self:GetM4Equipped() then
-			self.Neck.C0 = CFrame.new(0,1,0) * CFrame.Angles(-1.5 + math.rad(xAxisAttach.Orientation.X),math.rad(15),math.rad(180))
+			self.Neck.C0 = CFrame.new(0, 1, 0) * CFrame.Angles(-1.5 + math.rad(xAxisAttach.Orientation.X), math.rad(15), math.rad(180))
 		else
-			self.Neck.C0 = CFrame.new(0,1,0) * CFrame.Angles(-1.5 + math.rad(xAxisAttach.Orientation.X),0,math.rad(180))
+			self.Neck.C0 = CFrame.new(0, 1, 0) * CFrame.Angles(-1.5 + math.rad(xAxisAttach.Orientation.X), 0, math.rad(180))
 		end
 
-	--	task.wait()
 		task.wait()
+	--	task.wait()
 	end
-
 
 	self:ResetHead()
 	self.BodyRotate.Enabled = false
@@ -235,27 +222,28 @@ function actions:Reload()
 	self:SetM4Aimed(false)
 	reloadSound:Play()
 	self:SetReloading(true)
-	
+
 	self:YieldM4()
 
 	m4Weld.Part0 = nil
 	self.M4.CFrame = lArm.CFrame * CFrame.new(0.5,-0.2,0) * CFrame.Angles(math.rad(-90),math.rad(0),math.rad(0))
 	m4Weld.Part0 = lArm
-	
+
 	reloadAnimation:Play()
 	reloadAnimation:AdjustSpeed(3)
-	
+
 	task.wait(0.2)
-	
+
 	local fakeMag = magazine:Clone()
 	fakeMag.CanCollide = true
 	fakeMag.Parent = ignoreFolder
 	debrisService:AddItem(fakeMag,4)
 	magazine.Transparency = 1
-	
+
 	reloadAnimation.Stopped:Wait()
 
 	magazine.Transparency = 0
+
 	self:SetReloading(false)
 	self:SetMag(self.Settings.M4.MagSize.Value)
 	self:DrawM4()
@@ -293,8 +281,6 @@ function actions:DrawM4()
 		task.wait(0.5)
 	end
 end
-
-
 
 function actions:YieldM4()
 	if self:GetM4Equipped() or self:GetM4Lowered() then
@@ -393,6 +379,5 @@ function actions:UpdateFace(newStatus,recovered)
 		self:SetMood(newStatus)
 	end
 end
-
 
 return actions
