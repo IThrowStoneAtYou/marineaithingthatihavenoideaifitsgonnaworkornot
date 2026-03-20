@@ -1,3 +1,5 @@
+-- propbably not gonna be used, either remove vehicle support or not...
+
 local Vehicle = {}
 Vehicle.__index = Vehicle
 

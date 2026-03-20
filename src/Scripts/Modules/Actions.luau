@@ -32,7 +32,7 @@ local mySettings = marine.Settings
 local ignoreFolder = mySettings.IgnoreFolder.Value
 
 if ignoreFolder == nil then
-	repeat wait(0.03) ignoreFolder = mySettings.IgnoreFolder.Value until ignoreFolder ~= nil
+	repeat task.wait(0.03) ignoreFolder = mySettings.IgnoreFolder.Value until ignoreFolder ~= nil
 end
 
 --Motors--
@@ -214,7 +214,7 @@ function actions:Aim()
 			self.Neck.C0 = CFrame.new(0,1,0) * CFrame.Angles(-1.5 + math.rad(xAxisAttach.Orientation.X),0,math.rad(180))
 		end
 
-		task.wait()
+	--	task.wait()
 		task.wait()
 	end
 
