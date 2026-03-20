@@ -72,7 +72,6 @@ end
 
 local bulletClone -- saving this for later
 local bulletHoleClone
-local caseClone
 local shooting = false
 
 print(ignoreFolder)
@@ -99,15 +98,14 @@ function getObjects()
 	local bulletModel = serverStorage:WaitForChild("MarineStuff")
 	local bullet = bulletModel:FindFirstChild("Bullet") -- change the thing in quotes if you wanna change the bullet
 	local bulletHole = bulletModel:FindFirstChild("BulletHole")
-	local case = bulletModel:FindFirstChild("Case") -- change the thing in quotes if you wanna change the case
+	
 	bullet.Position = Vector3.new(0,0,0)
 	bulletHole.Decal.Transparency = 1
 	bulletClone = bullet
 	bulletHoleClone = bulletHole
-	caseClone = case
+	
 	print(bulletClone)
 	print(bulletHoleClone)
-	print(caseClone)
 end
 
 getObjects()
@@ -129,12 +127,6 @@ function combat.getBullet() -- doing this because i dont want to have to script 
 	end
 	
 	return newBullet
-end
-
-function combat.getCase()
-	local case = caseClone:Clone()
-	case.Parent = ignoreFolder
-	return case
 end
 
 function combat.getBulletHole(partHit)
@@ -253,7 +245,7 @@ function combat.pushBullet(npc,bullet,speed,iterations)
 										chunk.Size = Vector3.new(size,size,size)
 										chunk.CFrame = CFrame.new(result.Position)
 										chunk.Anchored = false
-										chunk.Velocity = Vector3.new(math.random(-20,20),math.random(10,20),math.random(-20,20))
+										chunk.AssemblyLinearVelocity = Vector3.new(math.random(-20,20),math.random(10,20),math.random(-20,20))
 										chunk.Parent = workspace
 										debrisService:AddItem(chunk,1)
 									end
@@ -310,7 +302,7 @@ function checkSight(target)
 	local canSee = false
 	local params = RaycastParams.new()
 	params.FilterDescendantsInstances = {marine,ignoreFolder}
-	params.FilterType = Enum.RaycastFilterType.Blacklist
+	params.FilterType = Enum.RaycastFilterType.Exclude
 	
 	local raycastResult = workspace:Raycast(myRoot.Position,CFrame.new(myRoot.Position,target.Position).LookVector * mySettings.DetectionRange.Value,params)
 	local Success,Error = pcall(function()
@@ -362,7 +354,7 @@ function combat:Shoot(target)
 					break
 				end
 			end
-			task.wait(fireRate)
+			task.wait(60/fireRate)
 			self:SetMag(self:GetMag()-1)
 			
 			fireSound:Play()
@@ -393,16 +385,6 @@ function combat:Shoot(target)
 				coroutine.resume(bulletCoroutine)
 			end
 			
-			local case = combat.getCase()
-			case.CFrame = chamber.WorldCFrame
-			case.Velocity = case.CFrame.RightVector * -20 * Vector3.new(1,-3,1)
-			core.spawn(function() 
-				task.wait(0.05) 
-				case.CanCollide = true 
-				task.wait(2)
-				case:Destroy()
-			end)
-
 			--Kick
 			local original = m4.HingeAttach1.Position
 			m4.HingeAttach1.Position = original - Vector3.new(0,0,0.2)
