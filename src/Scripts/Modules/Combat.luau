@@ -77,7 +77,7 @@ local bulletClone -- saving this for later
 local bulletHoleClone
 local shooting = false
 
-print(ignoreFolder)
+--print(ignoreFolder)
 
 function getObjects()
 	local bulletModel = serverStorage:WaitForChild("MarineStuff")
@@ -89,8 +89,8 @@ function getObjects()
 	bulletClone = bullet
 	bulletHoleClone = bulletHole
 	
-	print(bulletClone)
-	print(bulletHoleClone)
+--	print(bulletClone)
+--	print(bulletHoleClone)
 end
 
 getObjects()
@@ -235,12 +235,14 @@ function combat.pushBullet(npc,bullet,speed,iterations)
 										local chunk = Instance.new("Part")
 										chunk.Color = result.Instance.Color
 										chunk.Material = result.Instance.Material
+
 										local size = math.random(5)/20
 										chunk.Size = Vector3.new(size,size,size)
 										chunk.CFrame = CFrame.new(result.Position)
 										chunk.Anchored = false
 										chunk.AssemblyLinearVelocity = Vector3.new(math.random(-20,20),math.random(10,20),math.random(-20,20))
 										chunk.Parent = workspace
+
 										debrisService:AddItem(chunk,1)
 									end
 								end
@@ -313,7 +315,9 @@ function checkSight(target)
 		end
 	end)
 	
-	if not Success then warn(Error) end
+	if not Success then
+		 warn(Error)
+	end
 	
 	return canSee
 end
@@ -355,7 +359,7 @@ function combat:Shoot(target)
 				end
 			end
 
-			task.wait(60/fireRate) -- actually converted into irl weapon RPM
+			task.wait(60 / fireRate) -- actually converted into irl weapon RPM
 			self:SetMag(self:GetMag()-1)
 			
 			fireSound:Play()
@@ -388,13 +392,6 @@ function combat:Shoot(target)
 				
 				coroutine.resume(bulletCoroutine)
 			end
-			
-		--[[
-			--Kick
-			local original = m4.HingeAttach1.Position
-			m4.HingeAttach1.Position = original - Vector3.new(0,0,0.2)
-			tweenService:Create(m4.HingeAttach1, TweenInfo.new(0.1),{Position = original}):Play()
-		--[[]]
 		end
 		
 		if self:GetMag() <= 0 and not shooting then
