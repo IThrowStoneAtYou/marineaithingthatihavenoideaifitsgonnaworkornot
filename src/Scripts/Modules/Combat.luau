@@ -88,8 +88,8 @@ function getObjects()
 	bulletClone = bullet
 	bulletHoleClone = bulletHole
 
---	print(bulletClone)
---	print(bulletHoleClone)
+	--	print(bulletClone)
+	--	print(bulletHoleClone)
 end
 
 getObjects()
@@ -206,17 +206,16 @@ function combat.pushBullet(npc, bullet, speed, iterations)
 					impact.WorldPosition = result.Position
 
 					if human and human.Health > 0 then
-						--human:TakeDamage(math.random(5,15))
 						local distance = (result.Position - startPosition).Magnitude
 						local damageToTake = linearDropOff(distance)
 						core.applyDamage(human,damageToTake)
+
 						--print(damageToTake)
-						--impact.Hit:Play()
 						if human.Health <= 0 then
 							npc:FindTarget()
 						end
+						
 					elseif not human then
-						--impact.Miss:Play()
 						local newBulletHole = combat.getBulletHole(result.Instance)
 						if newBulletHole then
 							newBulletHole.CFrame = CFrame.new(newBulletHole.Position, newBulletHole.Position + result.Normal)
@@ -234,12 +233,14 @@ function combat.pushBullet(npc, bullet, speed, iterations)
 										local chunk = Instance.new("Part")
 										chunk.Color = result.Instance.Color
 										chunk.Material = result.Instance.Material
+										
 										local size = math.random(5)/20
 										chunk.Size = Vector3.new(size,size,size)
 										chunk.CFrame = CFrame.new(result.Position)
 										chunk.Anchored = false
 										chunk.AssemblyLinearVelocity = Vector3.new(math.random(-20,20),math.random(10,20),math.random(-20,20))
 										chunk.Parent = workspace
+										
 										debrisService:AddItem(chunk,1)
 									end
 								end
@@ -313,7 +314,7 @@ function checkSight(target)
 	end)
 
 	if not Success then
-		 warn(Error)
+		warn(Error)
 	end
 	return canSee
 end
@@ -360,15 +361,16 @@ function combat:Shoot(target)
 
 			fireSound:Play()
 
-			--flash:Emit(1)
 			local flashCoroutine = coroutine.create(function()
 				barrel.MuzzleFlashEffect:Emit(15)
 				barrel.MuzzleFlashInnerEffect:Emit(15)
 				barrel.SmokeEffect:Emit(3)
 				barrel.SparkEffect:Emit(20)
-				lightFlash.Enabled = true 
-				task.wait(0.05)
-				lightFlash.Enabled = false 
+				lightFlash.Enabled = true
+
+				task.wait(0.02)
+
+				lightFlash.Enabled = false
 			end)
 
 			coroutine.resume(flashCoroutine)
@@ -433,6 +435,7 @@ function combat:ThrowGrenade()
 				Vector3.new(self:GetTarget().Position.X,self.Root.Position.Y,self:GetTarget().Position.Z)
 			)
 		end
+
 		self.Human.AutoRotate = true
 
 		if self.Human.Health <= 0 then
@@ -443,11 +446,11 @@ function combat:ThrowGrenade()
 
 		w.Part1 = nil
 		local targetPos = self:GetTarget().Position + (self:GetTarget().Velocity)
+
 		debug.mark(targetPos)
+
 		local dist = core.checkDist(myRoot,self:GetTarget())
 		local aimCFrame = CFrame.lookAt(myRoot.Position,targetPos)
-		--g.Velocity = (aimCFrame.LookVector + Vector3.new(0,1.1,0)) * Vector3.new(dist,dist*1.5,dist)
-		--g.Velocity = (myRoot.CFrame.LookVector + Vector3.new(0,1,0)) * Vector3.new(dist,dist*1.5,dist)
 		g.Velocity = formulas.CalculateArc(g, targetPos, dist*1.3)
 
 		--Wait until grenade is thrown before it can be primed
@@ -456,7 +459,9 @@ function combat:ThrowGrenade()
 			if not obj:IsDescendantOf(marine) then
 				touched:Disconnect()
 				g.Pin:Play()
+
 				task.wait(0.5)
+
 				local x = Instance.new("Explosion",workspace)
 				x.Position = g.Position
 				x.BlastRadius = 16
@@ -469,7 +474,6 @@ function combat:ThrowGrenade()
 						core.applyDamage(human,20-dist)
 					end
 				end)
-
 				g:Destroy()
 				debrisService:AddItem(x,2)
 			end
@@ -481,6 +485,7 @@ function combat:ThrowGrenade()
 		t.Attachment0 = attach0
 		t.Attachment1 = attach1
 		t.Lifetime = 0.5
+
 		t.Color = ColorSequence.new(Color3.fromRGB(150,150,150))
 		t.WidthScale = NumberSequence.new(1,0)
 
@@ -502,6 +507,7 @@ function combat:Stab()
 			canStab = true
 		end
 	end
+
 	if canStab then
 		self:ChaseTargetDirectly()
 
@@ -536,7 +542,7 @@ function combat:CheckClusterAtTarget()
 			return false
 		end
 	end
-	
+
 	--Check if enemies are paired close together
 	for i,v in ipairs(self:GetPotentialTarget()) do
 		if v ~= self:GetTarget() then
