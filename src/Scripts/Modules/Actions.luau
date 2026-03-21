@@ -66,15 +66,15 @@ function actions:Crouch()
 	self.Human.WalkSpeed = 0
 	self.Human.HipHeight = -1.5
 	self.Human:MoveTo(self.Root.Position)
-	
+
 	self.Instance["Right Leg"].CFrame = self.Root.CFrame * CFrame.new(0.5,-1,1) * CFrame.fromEulerAnglesXYZ(math.rad(-90),0,0)
 	self.Instance["Left Leg"].CFrame = self.Root.CFrame * CFrame.new(-0.5,-0.5,-0.5)
-	
+
 	self.lWeld = Instance.new("WeldConstraint")
 	self.lWeld.Parent = self.Torso
 	self.lWeld.Part0 = self.Torso
 	self.lWeld.Part1 = self.Instance["Left Leg"]
-	
+
 	self.rWeld = Instance.new("WeldConstraint")
 	self.rWeld.Parent = self.Torso
 	self.rWeld.Part0 = self.Torso
@@ -85,10 +85,10 @@ function actions:Stand()
 
 	if self.lWeld then self.lWeld:Destroy() end
 	if self.rWeld then self.rWeld:Destroy() end
-	
+
 	lHip.Enabled = true
 	rHip.Enabled = true
-	
+
 	self.Human.WalkSpeed = 16
 	self.Human.HipHeight = 0
 end
@@ -119,7 +119,6 @@ function actions:Aim()
 	local canSee = self:CheckSightToTarget()
 
 	while true do
-
 		if not self:GetM4Equipped() and not self:GetReloading() then
 			break
 		elseif self:GetTarget() and target ~= self:GetTarget() then
@@ -150,6 +149,12 @@ function actions:Aim()
 
 		if core.runAtTS("ActionsCheckSightToTarget", 1) then
 			canSee = self:CheckSightToTarget()
+			if not canSee then
+				self.BodyRotate.Enabled = false
+			--	self.Human.AutoRotate = true
+			else
+				self.BodyRotate.Enabled = true
+			end
 		end
 
 		if not canSee then
@@ -203,7 +208,6 @@ function actions:Aim()
 		end
 
 		task.wait()
-	--	task.wait()
 	end
 
 	self:ResetHead()
@@ -220,8 +224,8 @@ end
 
 function actions:Reload()
 	self:SetM4Aimed(false)
-	reloadSound:Play()
 	self:SetReloading(true)
+	reloadSound:Play()
 
 	self:YieldM4()
 
@@ -255,15 +259,16 @@ function actions:DrawM4()
 		self:SetM4Equipped(true)
 		self:SetM4Lowered(false)
 		self.M4.Equip:Play()
-		
-		xAxisAttach.CFrame = myTorso.CFrame
-		
+
+	--	xAxisAttach.CFrame = myTorso.CFrame
+		xAxisAttach.WorldCFrame = myTorso.CFrame
+
 		--M4 Setup
 		m4Weld.Part0 = nil
 		self.M4.CFrame = self.Root.CFrame * CFrame.new(0.65,-1.6,0) * CFrame.Angles(math.rad(-90),math.rad(0),math.rad(0))
 		m4HingeAttach.WorldPosition = torsoHingeAttach.WorldPosition		
 		m4Hinge.Enabled = true
-		
+
 		--Right Arm Setup
 		rShoulder.Part1 = nil
 		rArmWeld.Part1 = nil --x 1.25
@@ -271,34 +276,34 @@ function actions:DrawM4()
 		rArm.CFrame = m4.CFrame * CFrame.new(0.7,-0.4,1.5) * CFrame.Angles(math.rad(80),math.rad(0),math.rad(-10))
 		rArmWeld.Part1 = rArm
 		rArmWeld.Enabled = true
-		
+
 		--Left Arm Setup 
 		lShoulder.Part1 = nil
 		lArmWeld.Part1 = nil
 		lArm.CFrame = m4.CFrame * CFrame.new(-1,-0.3,0.8) * CFrame.Angles(math.rad(90),math.rad(-3),math.rad(28)) --x84
 		lArmWeld.Part1 = lArm
-		
+
 		task.wait(0.5)
 	end
 end
 
 function actions:YieldM4()
 	if self:GetM4Equipped() or self:GetM4Lowered() then
-		
+
 		self:SetM4Equipped(false)
 		self:SetM4Aimed(false)
 		self:SetM4Lowered(false)
 
 		self.M4.Equip:Play()
-		
+
 		--Right Arm setup
 		rArmWeld.Part1 = nil
 		rShoulder.Part1 = rArm
-		
+
 		--Left Arm Setup
 		lArmWeld.Part1 = nil
 		lShoulder.Part1 = lArm
-		
+
 		--M4 Setup
 		m4Weld.Part0 = nil
 		m4Hinge.Enabled = false
@@ -309,31 +314,31 @@ end
 
 function actions:LowerM4()
 	if not self:GetM4Lowered() and self:GetM4Equipped() and not self:GetReloading() then
-		
+
 		self:SetM4Aimed(false)
 		self:SetM4Equipped(false)
 		self:SetM4Lowered(true)
-		
+
 		self.M4.Equip:Play()
-		
+
 		--M4 Setup
 		m4Hinge.Enabled = false
 		m4Weld.Part0 = nil
 		self.M4.CFrame = myTorso.CFrame * CFrame.new(-0.5,-0.9,-1) * CFrame.Angles(math.rad(-75),math.rad(55),math.rad(75)) -- z 35 x 0
 		m4Weld.Part0 = myTorso
-		
+
 		--Right Arm Setup
 		rShoulder.Part1 = nil 
 		rArmWeld.Part1 = nil
 		rArm.CFrame = myRoot.CFrame * CFrame.new(1.3,-0.2,-0.3) * CFrame.Angles(math.rad(30),math.rad(14),math.rad(-25))
 		rArmWeld.Part1 = rArm
-		
+
 		--Left Arm Setup 
 		lShoulder.Part1 = nil 
 		lArmWeld.Part1 = nil
 		lArm.CFrame = myRoot.CFrame * CFrame.new(-1.3,-0.1,-0.3) * CFrame.Angles(math.rad(40),math.rad(-3),math.rad(10)) --x84
 		lArmWeld.Part1 = lArm
-		
+
 		task.wait(0.5)
 	end
 end
