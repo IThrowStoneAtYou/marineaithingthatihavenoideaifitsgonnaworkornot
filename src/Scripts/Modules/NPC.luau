@@ -201,7 +201,7 @@ function NPC:CheckSight(target)
 	
 	local ignoreList = {self.Instance}
 	if self.Vehicle and self.Vehicle:IsInVehicle() then
-		table.insert(ignoreList,self.Vehicle.Instance)
+		table.insert(ignoreList, self.Vehicle.Instance)
 	end
 	
 	local enemyTargetVehicle = self:GetTargetVehicle()
@@ -232,19 +232,17 @@ end
 function NPC:CheckShot()
 	local raycastParams = RaycastParams.new()
 	local ignoreList = {self.Instance}
-	
 	local enemyTargetVehicle = self:GetTargetVehicle()
 	if enemyTargetVehicle then
 		table.insert(ignoreList, enemyTargetVehicle)
 	end
-
+	
 	raycastParams.FilterDescendantsInstances = ignoreList
-	
-	
-	
+		
 	local dist = Core.checkDist(self.Root,self:GetTarget())
 	local result1 = workspace:Raycast(self.M4.Barrel.WorldPosition,(self:GetTarget().Position - self.M4.Barrel.WorldPosition).Unit*dist,raycastParams)
 	local result2 = workspace:Raycast(self.Head.Position, (self:GetTarget().Position - self.Head.Position).Unit*dist,raycastParams)
+
 	if result1 and result2 and result1.Instance.Parent == result2.Instance.Parent then
 		if result1.Instance:IsDescendantOf(self:GetTarget().Parent) or result1.Instance.Name == "Bullet" then
 			return true
@@ -268,6 +266,7 @@ function NPC:FacingTarget()
 		self.Root.Position.Y,
 		targetPos.Z
 		)).LookVector
+
 	local difference = (currentLookVector - goalLookVector).Magnitude
 	if difference < 0.5 then
 		return true

@@ -22,7 +22,7 @@ local tags = {}
 function core.runAtTS(tag: StringValue, delayTime: IntValue, func: Function)
 	if tags[tag] then
 		if core.tick() - tags[tag].ts > delayTime then
-			if func then 
+			if func then
 				func()
 			end
 			tags[tag].ts = core.tick()
@@ -32,7 +32,7 @@ function core.runAtTS(tag: StringValue, delayTime: IntValue, func: Function)
 		tags[tag] = {
 			ts = core.tick()
 		}
-		if func then 
+		if func then
 			func() -- yes
 		end
 		return true
