@@ -16,7 +16,6 @@ local myHuman = marine.Humanoid
 local myRoot = marine.HumanoidRootPart
 local m4 = marine.M4
 local reloadSound = m4.Reload
---local magazine = marine.Mag
 
 local myHead = marine.Head
 local myTorso = marine.Torso
@@ -28,6 +27,10 @@ local rArmWeld = myTorso["Right Arm Weld"]
 local lArm = marine["Left Arm"]
 local rArm = marine["Right Arm"]
 local m4Weld = m4["M4 Weld"]
+
+local neckOrg = neck.C0
+local rShoulderOrg = rShoulder.C0
+local lShoulderOrg = lShoulder.C0
 
 local mySettings = marine.Settings
 local ignoreFolder = mySettings.IgnoreFolder.Value
@@ -54,14 +57,16 @@ xAxisAttach.CFrame = myRoot.CFrame
 local reloadAnimation = myHuman:LoadAnimation(marine.Reload)
 reloadAnimation.Priority = Enum.AnimationPriority.Action
 
-local IdleM4 = myHuman:LoadAnimation(marine.IdleM4) -- for Draw() (yes i know this kinda got me confused.)
-reloadAnimation.Priority = Enum.AnimationPriority.Action
+local IdleM4 = myHuman:LoadAnimation(marine.IdleM4)
+IdleM4.Priority = Enum.AnimationPriority.Action
 
-local YieldM4 = myHuman:LoadAnimation(marine.YieldM4)
-reloadAnimation.Priority = Enum.AnimationPriority.Action
+local YieldM4Anim = myHuman:LoadAnimation(marine.YieldM4)
+YieldM4Anim.Priority = Enum.AnimationPriority.Action  -- and again
 
-local LowerM4 = myHuman:LoadAnimation(marine.LowerM4)
-reloadAnimation.Priority = Enum.AnimationPriority.Action
+local LowerM4Anim = myHuman:LoadAnimation(marine.LowerM4)
+LowerM4Anim.Priority = Enum.AnimationPriority.Action  -- and again
+
+YieldM4Anim:Play()
 
 function actions:Crouch()
 	lHip.Enabled = false
@@ -115,9 +120,6 @@ function actions:Aim()
 	local validTargetTS = core.tick()
 	local aimSwitchDelay = 1
 
-	local checkSightTS = core.tick()
-	local checkSightDelay = 2
-
 	local dist = core.checkDist(target, myTorso)
 	local canSee = self:CheckSightToTarget()
 
@@ -154,7 +156,6 @@ function actions:Aim()
 			canSee = self:CheckSightToTarget()
 			if not canSee then
 				self.BodyRotate.Enabled = false
-				--	self.Human.AutoRotate = true
 			else
 				self.BodyRotate.Enabled = true
 			end
@@ -183,28 +184,43 @@ function actions:Aim()
 			aimPos = aimPos:Lerp(aimPos + Vector3.new(offsetX, offsetY, 0), 0.5)
 		end
 
-		local tilt = (self.Root.Position.Y - aimPos.Y) / (dist * 0.04)
-		tilt = math.clamp(tilt, -45, 45)
-		rootJoint.C0 = rootJointOrg * CFrame.fromEulerAnglesYXZ(math.rad(tilt), 0, 0)
-		lHip.C0 = lHipOrg * CFrame.fromEulerAnglesYXZ(0, 0, math.rad(-tilt))
-		rHip.C0 = rHipOrg * CFrame.fromEulerAnglesYXZ(0, 0, math.rad(tilt))
-		
-		-- Body yaw via AlignOrientation directly
+		-- Body yaw
 		self.BodyRotate.CFrame = CFrame.new(myRoot.Position, Vector3.new(
 			aimPos.X,
 			myRoot.Position.Y,
 			aimPos.Z
 			))
 
-		if self:GetM4Equipped() then
-			self.Neck.C0 = CFrame.new(0, 1, 0) * CFrame.Angles(-1.5 + math.rad(xAxisAttach.Orientation.X), math.rad(15), math.rad(180))
-		else
-			self.Neck.C0 = CFrame.new(0, 1, 0) * CFrame.Angles(-1.5 + math.rad(xAxisAttach.Orientation.X), 0, math.rad(180))
+		-- Head and arm pitch toward aimPos
+		local vec = aimPos - myHead.Position
+		local vecDist = vec.Magnitude
+
+		if vecDist > 0.001 then
+			local torsoLook = myTorso.CFrame.LookVector
+			local diff = vec.Y
+
+			-- Head
+			local pitch = -(math.asin(math.clamp(diff / vecDist, -1, 1)))
+			local yaw = -(vec.Unit:Cross(torsoLook)).Y
+			local targetNeck = neckOrg * CFrame.Angles(pitch, 0, yaw)
+			neck.C0 = neck.C0:Lerp(targetNeck, 0.3)
+
+			-- Arms
+			local look = vec.Unit
+			local x = math.asin(math.clamp(look.Y, -1, 1))
+			local _, ry, rz = rShoulder.C0:ToEulerAnglesXYZ()
+			local _, ly, lz = lShoulder.C0:ToEulerAnglesXYZ()
+
+			rShoulder.C0 = rShoulder.C0:Lerp(
+				CFrame.new(rShoulder.C0.Position) * CFrame.Angles(x, ry, rz), 0.3)
+			lShoulder.C0 = lShoulder.C0:Lerp(
+				CFrame.new(lShoulder.C0.Position) * CFrame.Angles(x, ly, lz), 0.3)
 		end
 
 		task.wait()
 	end
 
+	-- Reset everything
 	self:ResetHead()
 	self.BodyRotate.Enabled = false
 	self.Human.WalkSpeed = 16
@@ -213,27 +229,34 @@ function actions:Aim()
 	rootJoint.C0 = rootJointOrg
 	lHip.C0 = lHipOrg
 	rHip.C0 = rHipOrg
+	rShoulder.C0 = rShoulderOrg
+	lShoulder.C0 = lShoulderOrg
 
 	self:SetM4Aimed(false)
 end
 
 function actions:Reload()
+	print("start")
 	self:SetM4Aimed(false)
 	self:SetReloading(true)
 	reloadSound:Play()
 
-	self:YieldM4()
+	IdleM4:Stop()
+	LowerM4Anim:Stop()
+	YieldM4Anim:Stop()
 
 	reloadAnimation:Play()
 	reloadAnimation:AdjustSpeed(3)
 
-	task.wait(0.2)
+	task.wait(reloadAnimation.Length / 3) -- Length divided by speed
 
-	reloadAnimation.Stopped:Wait()
+	reloadAnimation:Stop()
 
 	self:SetReloading(false)
 	self:SetMag(self.Settings.M4.MagSize.Value)
+	self:SetM4Equipped(false) 
 	self:DrawM4()
+	print("finish?")
 end
 
 function actions:DrawM4()
@@ -242,38 +265,38 @@ function actions:DrawM4()
 		self:SetM4Equipped(true)
 		self:SetM4Lowered(false)
 		self.M4.Equip:Play()
-		
-		
-		
-		task.wait(0.5)
+
+		LowerM4Anim:Stop()
+		YieldM4Anim:Stop()
+		IdleM4:Play()
+
+		print("Draw")
 	end
 end
 
 function actions:YieldM4()
 	if self:GetM4Equipped() or self:GetM4Lowered() then
-
 		self:SetM4Equipped(false)
 		self:SetM4Aimed(false)
 		self:SetM4Lowered(false)
-
 		self.M4.Equip:Play()
 
-		
+		IdleM4:Stop()
+		LowerM4Anim:Stop()
+		YieldM4Anim:Play()
 	end
 end
 
 function actions:LowerM4()
 	if not self:GetM4Lowered() and self:GetM4Equipped() and not self:GetReloading() then
-
 		self:SetM4Aimed(false)
 		self:SetM4Equipped(false)
 		self:SetM4Lowered(true)
-
 		self.M4.Equip:Play()
-		
 
-
-		task.wait(0.5)
+		IdleM4:Stop()
+		YieldM4Anim:Stop()
+		LowerM4Anim:Play()
 	end
 end
 
