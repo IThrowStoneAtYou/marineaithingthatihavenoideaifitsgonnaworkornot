@@ -54,14 +54,16 @@ xAxisAttach.CFrame = myRoot.CFrame
 local reloadAnimation = myHuman:LoadAnimation(marine.Reload)
 reloadAnimation.Priority = Enum.AnimationPriority.Action
 
-local IdleM4 = myHuman:LoadAnimation(marine.IdleM4) -- for Draw() (yes i know this kinda got me confused.)
-reloadAnimation.Priority = Enum.AnimationPriority.Action
+local IdleM4 = myHuman:LoadAnimation(marine.IdleM4)
+IdleM4.Priority = Enum.AnimationPriority.Action  -- this is setting IdleM4 correctly
 
-local YieldM4 = myHuman:LoadAnimation(marine.YieldM4)
-reloadAnimation.Priority = Enum.AnimationPriority.Action
+local YieldM4Anim = myHuman:LoadAnimation(marine.YieldM4)
+YieldM4Anim.Priority = Enum.AnimationPriority.Action  -- and again
 
-local LowerM4 = myHuman:LoadAnimation(marine.LowerM4)
-reloadAnimation.Priority = Enum.AnimationPriority.Action
+local LowerM4Anim = myHuman:LoadAnimation(marine.LowerM4)
+LowerM4Anim.Priority = Enum.AnimationPriority.Action  -- and again
+
+YieldM4Anim:Play()
 
 function actions:Crouch()
 	lHip.Enabled = false
@@ -188,7 +190,7 @@ function actions:Aim()
 		rootJoint.C0 = rootJointOrg * CFrame.fromEulerAnglesYXZ(math.rad(tilt), 0, 0)
 		lHip.C0 = lHipOrg * CFrame.fromEulerAnglesYXZ(0, 0, math.rad(-tilt))
 		rHip.C0 = rHipOrg * CFrame.fromEulerAnglesYXZ(0, 0, math.rad(tilt))
-		
+
 		-- Body yaw via AlignOrientation directly
 		self.BodyRotate.CFrame = CFrame.new(myRoot.Position, Vector3.new(
 			aimPos.X,
@@ -218,22 +220,27 @@ function actions:Aim()
 end
 
 function actions:Reload()
+	print("start")
 	self:SetM4Aimed(false)
 	self:SetReloading(true)
 	reloadSound:Play()
 
-	self:YieldM4()
+	IdleM4:Stop()
+	LowerM4Anim:Stop()
+	YieldM4Anim:Stop()
 
 	reloadAnimation:Play()
 	reloadAnimation:AdjustSpeed(3)
 
-	task.wait(0.2)
+	task.wait(reloadAnimation.Length / 3) -- Length divided by speed
 
-	reloadAnimation.Stopped:Wait()
+	reloadAnimation:Stop()
 
 	self:SetReloading(false)
 	self:SetMag(self.Settings.M4.MagSize.Value)
+	self:SetM4Equipped(false) 
 	self:DrawM4()
+	print("finish?")
 end
 
 function actions:DrawM4()
@@ -242,38 +249,38 @@ function actions:DrawM4()
 		self:SetM4Equipped(true)
 		self:SetM4Lowered(false)
 		self.M4.Equip:Play()
-		
-		
-		
-		task.wait(0.5)
+
+		LowerM4Anim:Stop()
+		YieldM4Anim:Stop()
+		IdleM4:Play()
+
+		print("Draw")
 	end
 end
 
 function actions:YieldM4()
 	if self:GetM4Equipped() or self:GetM4Lowered() then
-
 		self:SetM4Equipped(false)
 		self:SetM4Aimed(false)
 		self:SetM4Lowered(false)
-
 		self.M4.Equip:Play()
 
-		
+		IdleM4:Stop()
+		LowerM4Anim:Stop()
+		YieldM4Anim:Play()
 	end
 end
 
 function actions:LowerM4()
 	if not self:GetM4Lowered() and self:GetM4Equipped() and not self:GetReloading() then
-
 		self:SetM4Aimed(false)
 		self:SetM4Equipped(false)
 		self:SetM4Lowered(true)
-
 		self.M4.Equip:Play()
-		
 
-
-		task.wait(0.5)
+		IdleM4:Stop()
+		YieldM4Anim:Stop()
+		LowerM4Anim:Play()
 	end
 end
 
