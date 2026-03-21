@@ -31,10 +31,13 @@ local bulletSettings = mySettings.BulletPhysics
 local visualSettings = mySettings.Visuals
 local damageSettings = mySettings.Damage
 
+-- Animations --
 local stabAnimation = myHuman:LoadAnimation(marine.Stab)
 stabAnimation.Priority = Enum.AnimationPriority.Action
+
 local stabPunchAnimation = myHuman:LoadAnimation(marine.StabPunch)
 stabPunchAnimation.Priority = Enum.AnimationPriority.Action
+
 local throwAnimation = myHuman:LoadAnimation(marine.ThrowAnimation)
 throwAnimation.Priority = Enum.AnimationPriority.Action
 throwAnimation.Looped = false
@@ -67,47 +70,27 @@ local bounceChance = bulletSettings.BounceChance.Value -- chance of ricochet
 local ignoreFolder = mySettings.IgnoreFolder.Value
 
 if ignoreFolder == nil then
-	repeat wait() ignoreFolder = mySettings.IgnoreFolder.Value until ignoreFolder ~= nil
+	repeat task.wait() ignoreFolder = mySettings.IgnoreFolder.Value until ignoreFolder ~= nil
 end
 
 local bulletClone -- saving this for later
 local bulletHoleClone
-local caseClone
 local shooting = false
 
 print(ignoreFolder)
-
--- scrapped function (scrapped because youd need to put the model in your inventory to insert)
-
---[[ function preloadObjects()-- loading assets that have already been made for the marine
-	local bulletModel = insertService:LoadAsset(9864280320) -- does not have scripts btw you can check the model
-	local bullet = bulletModel:FindFirstChild("Bullet")
-	local bulletHole = bulletModel:FindFirstChild("BulletHole")
-	bullet.Anchored = true
-	bullet.CanCollide = false
-	bullet.Massless = true
-	bullet.Position = Vector3.new(0,0,0)
-	bullet.Parent = workspace.Terrain
-	bulletHole.Decal.Transparency = 1
-	bulletClone = bullet
-	bulletHoleClone = bulletHole
-end ]]--
-
--- preloadObjects()
 
 function getObjects()
 	local bulletModel = serverStorage:WaitForChild("MarineStuff")
 	local bullet = bulletModel:FindFirstChild("Bullet") -- change the thing in quotes if you wanna change the bullet
 	local bulletHole = bulletModel:FindFirstChild("BulletHole")
-	local case = bulletModel:FindFirstChild("Case") -- change the thing in quotes if you wanna change the case
+	
 	bullet.Position = Vector3.new(0,0,0)
 	bulletHole.Decal.Transparency = 1
 	bulletClone = bullet
 	bulletHoleClone = bulletHole
-	caseClone = case
+	
 	print(bulletClone)
 	print(bulletHoleClone)
-	print(caseClone)
 end
 
 getObjects()
@@ -124,17 +107,12 @@ function combat.getBullet() -- doing this because i dont want to have to script 
 	local newBullet = bulletClone:Clone()
 	newBullet.Parent = ignoreFolder
 	newBullet.Transparency = 0
+
 	if newBullet:FindFirstChild("Whiz") then
 		newBullet.Whiz:Play()
 	end
 	
 	return newBullet
-end
-
-function combat.getCase()
-	local case = caseClone:Clone()
-	case.Parent = ignoreFolder
-	return case
 end
 
 function combat.getBulletHole(partHit)
@@ -144,6 +122,7 @@ function combat.getBulletHole(partHit)
 		bulletHole.Decal.Transparency = 0
 		bulletHole.Decal.Color3 = partHit.Color
 		bulletHole.Parent = ignoreFolder
+
 		debrisAttachment.TinyDustParticles.Color = ColorSequence.new(partHit.Color)
 		debrisAttachment.MainDustEffect.Color = ColorSequence.new(partHit.Color)
 		debrisAttachment.SmokeEffect.Color = ColorSequence.new(partHit.Color)
@@ -161,6 +140,7 @@ function canRicochet()
 		else
 			local chance = bounceChance
 			local rand = math.random(0,100)
+
 			if rand > chance then
 				bounce = true
 			end
@@ -171,27 +151,31 @@ end
 
 function removeBullet(bullet)
 	bullet.Transparency = 1
+
 	if bullet:findFirstChild("Whiz") then
 		bullet.Whiz:Stop()
 	end
+
 	bullet.Parent = workspace.Terrain
-	--bullet.Size = Vector3.new()
-	debrisService:AddItem(bullet,0.5)
+	--bullet.Size = Vector3.new() -- huh?
+	debrisService:AddItem(bullet, 0.5)
 end
 
 function combat:applySpread(bullet,direction)
 	local dirCF = CFrame.new(Vector3.new(),direction)
-	local spreadDirection = CFrame.fromOrientation(0,0,math.random(0,math.pi * 2))
-	local angle = CFrame.fromOrientation(math.rad(math.random(minBulletSpread,maxBulletSpread)),0,0)
+	local spreadDirection = CFrame.fromOrientation(0, 0, math.random(0, math.pi * 2))
+	local angle = CFrame.fromOrientation(math.rad(math.random(minBulletSpread, maxBulletSpread)),0,0)
 	local newDirection = (dirCF * spreadDirection * angle)
+
 	bullet.CFrame = CFrame.new(Vector3.new(),newDirection.LookVector)
 	bullet.Position = barrel.WorldPosition
 end
 
 function linearDropOff(distance) -- credit to dthecoolest for damage fall off calculations
-	local slope = (minGunDamage-maxGunDamage)/(minDamageRange-falloffRange)
-	local solvedEq = slope*(distance-falloffRange)+maxGunDamage
-	return math.clamp(solvedEq,minGunDamage,maxGunDamage)
+	local slope = (minGunDamage - maxGunDamage) / (minDamageRange - falloffRange)
+	local solvedEq = slope * (distance - falloffRange) + maxGunDamage
+	
+	return math.clamp(solvedEq, minGunDamage, maxGunDamage)
 end
 
 function combat.pushBullet(npc,bullet,speed,iterations)
@@ -199,20 +183,21 @@ function combat.pushBullet(npc,bullet,speed,iterations)
 	--Magic fastcast
 	
 	if speed == nil or iterations == nil then -- changing this to default settings
-		speed = 20 -- 7 before
-		iterations = 20
+		speed = 20 -- 7 before / uses studs per sec
+		iterations = 20 -- if i recall, this is how precise the detections wwas???
 	end
 	
 	local params = RaycastParams.new()
 	params.FilterDescendantsInstances = {marine,workspace.Terrain,ignoreFolder}
+
 	local startPosition = barrel.WorldPosition
-	
 	local success,Error = pcall(function()
 		task.spawn(function()
 			while true do
 				local position,nextPosition = bullet.Position,Vector3.new(0,0,speed)
-		        local result = workspace:Raycast(position, bullet.CFrame.LookVector*speed,params)
-				if result and result.Instance.Name ~= "Bullet" then	
+		        local result = workspace:Raycast(position, bullet.CFrame.LookVector * speed, params)
+
+				if result and result.Instance.Name ~= "Bullet" then
 					local currentNormal = bullet.CFrame.LookVector
 					bullet.CFrame = CFrame.new(result.Position)
 					removeBullet(bullet)
@@ -220,6 +205,7 @@ function combat.pushBullet(npc,bullet,speed,iterations)
 					--local human = result.Instance.Parent:FindFirstChildWhichIsA("Humanoid")
 					local human = core.getHuman(result.Instance.Parent)
 					impact.WorldPosition = result.Position
+
 					if human and human.Health > 0 then
 						--human:TakeDamage(math.random(5,15))
 						local distance = (result.Position - startPosition).Magnitude
@@ -253,7 +239,7 @@ function combat.pushBullet(npc,bullet,speed,iterations)
 										chunk.Size = Vector3.new(size,size,size)
 										chunk.CFrame = CFrame.new(result.Position)
 										chunk.Anchored = false
-										chunk.Velocity = Vector3.new(math.random(-20,20),math.random(10,20),math.random(-20,20))
+										chunk.AssemblyLinearVelocity = Vector3.new(math.random(-20,20),math.random(10,20),math.random(-20,20))
 										chunk.Parent = workspace
 										debrisService:AddItem(chunk,1)
 									end
@@ -267,17 +253,20 @@ function combat.pushBullet(npc,bullet,speed,iterations)
 						impact.Spark:Emit(10)
 						impact.FlashEffect:Emit(10)
 						impact.FlashInnerEffect:Emit(5)
+
 						local canBounce = canRicochet()
+
 						if canBounce then
 							local newBullet = combat.getBullet()
 							local reflect = reflectBullet(result,currentNormal)
 							newBullet.CFrame = CFrame.new(Vector3.new(0,0,0),reflect)
 							newBullet.Position = result.Position
 							newBullet.CFrame = newBullet.CFrame * CFrame.new(0,0,-0.01)
-							runService.Heartbeat:Wait()
-							runService.Heartbeat:Wait()
+						--	runService.Heartbeat:Wait()  -- what???
+						--	runService.Heartbeat:Wait()
 							combat.pushBullet(marine,newBullet,(speed - speedDecrease),ricochetIterations)
 						end
+
 					elseif human then
 						impact.Hit:Play()
 						impact.BloodCloud:Emit(30)
@@ -285,21 +274,24 @@ function combat.pushBullet(npc,bullet,speed,iterations)
 					else
 						impact.Miss:Play()
 					end
+
 					break
 		        else
 					bullet.CFrame = bullet.CFrame * CFrame.new(-nextPosition)
 				end
-				
+		
 				iterations -= 1
+
 				if iterations < 0 then
 					removeBullet(bullet)
 					break
 				end
+
 				task.wait()
 			end
 		end)
 	end)
-	
+
 	if not success then
 		warn(Error)
 		removeBullet(bullet)
@@ -310,7 +302,7 @@ function checkSight(target)
 	local canSee = false
 	local params = RaycastParams.new()
 	params.FilterDescendantsInstances = {marine,ignoreFolder}
-	params.FilterType = Enum.RaycastFilterType.Blacklist
+	params.FilterType = Enum.RaycastFilterType.Exclude
 	
 	local raycastResult = workspace:Raycast(myRoot.Position,CFrame.new(myRoot.Position,target.Position).LookVector * mySettings.DetectionRange.Value,params)
 	local Success,Error = pcall(function()
@@ -362,7 +354,8 @@ function combat:Shoot(target)
 					break
 				end
 			end
-			task.wait(fireRate)
+
+			task.wait(60/fireRate) -- actually converted into irl weapon RPM
 			self:SetMag(self:GetMag()-1)
 			
 			fireSound:Play()
@@ -374,40 +367,34 @@ function combat:Shoot(target)
 				barrel.SmokeEffect:Emit(3)
 				barrel.SparkEffect:Emit(20)
 				lightFlash.Enabled = true 
-				wait(0.05)
+				task.wait(0.05)
 				lightFlash.Enabled = false 
 			end)
 			
 			coroutine.resume(flashCoroutine)
 			
 			--bullet.CFrame = m4.CFrame * CFrame.new(0,0.2,-2.5) --z: 0.5
-			for i = 1,bulletsPerShot,1 do
+			for i = 1, bulletsPerShot, 1 do
 				local bulletCoroutine = coroutine.create(function()
 					local bullet = combat.getBullet()
-					runService.Heartbeat:Wait() --Give bullet time to render from barrel
+				--	runService.Heartbeat:Wait() --Give bullet time to render from barrel -- (me in the future: figure out this is useless)
+
 					combat:applySpread(bullet,barrel.WorldCFrame.LookVector)
-					runService.Heartbeat:Wait() --Give bullet time to render from barrel
+
+				--	runService.Heartbeat:Wait() --Give bullet time to render from barrel
+
 					combat.pushBullet(self, bullet, bulletSpeed, iterations)
 				end)
 				
 				coroutine.resume(bulletCoroutine)
 			end
 			
-			local case = combat.getCase()
-			case.CFrame = chamber.WorldCFrame
-			case.Velocity = case.CFrame.RightVector * -20 * Vector3.new(1,-3,1)
-			core.spawn(function() 
-				task.wait(0.05) 
-				case.CanCollide = true 
-				task.wait(2)
-				case:Destroy()
-			end)
-
+		--[[
 			--Kick
 			local original = m4.HingeAttach1.Position
 			m4.HingeAttach1.Position = original - Vector3.new(0,0,0.2)
 			tweenService:Create(m4.HingeAttach1, TweenInfo.new(0.1),{Position = original}):Play()
-		
+		--[[]]
 		end
 		
 		if self:GetMag() <= 0 and not shooting then
@@ -431,6 +418,7 @@ function combat:ThrowGrenade()
 		g.Boom.PlayOnRemove = true
 		g.Parent = workspace
 		g.CanCollide = true
+		
 		g.CFrame = marine["Right Arm"].CFrame * CFrame.new(0,-1.3,0) * CFrame.Angles(0,0,math.rad(90))
 		g:SetNetworkOwner(nil)
 		debrisService:AddItem(g,5)
@@ -446,10 +434,14 @@ function combat:ThrowGrenade()
 		
 		--Rotate and throw
 		self.Human.AutoRotate = false
-		for i=1,4 do
+		for i = 1, 4 do
 			task.wait(0.1)
-			self.Root.CFrame = CFrame.lookAt(Vector3.new(self.Root.Position.X,self.Root.Position.Y,self.Root.Position.Z),Vector3.new(self:GetTarget().Position.X,self.Root.Position.Y,self:GetTarget().Position.Z))
+			self.Root.CFrame = CFrame.lookAt(
+				Vector3.new(self.Root.Position.X, self.Root.Position.Y, self.Root.Position.Z),
+				Vector3.new(self:GetTarget().Position.X,self.Root.Position.Y,self:GetTarget().Position.Z)
+			)
 		end
+
 		self.Human.AutoRotate = true
 		
 		if self.Human.Health <= 0 then
@@ -460,13 +452,14 @@ function combat:ThrowGrenade()
 		
 		w.Part1 = nil
 		local targetPos = self:GetTarget().Position + (self:GetTarget().Velocity)
+
 		debug.mark(targetPos)
+
 		local dist = core.checkDist(myRoot,self:GetTarget())
 		local aimCFrame = CFrame.lookAt(myRoot.Position,targetPos)
 		--g.Velocity = (aimCFrame.LookVector + Vector3.new(0,1.1,0)) * Vector3.new(dist,dist*1.5,dist)
 		--g.Velocity = (myRoot.CFrame.LookVector + Vector3.new(0,1,0)) * Vector3.new(dist,dist*1.5,dist)
 		g.Velocity = formulas.CalculateArc(g, targetPos, dist*1.3)
-		
 		
 		--Wait until grenade is thrown before it can be primed
 		local touched
@@ -474,18 +467,21 @@ function combat:ThrowGrenade()
 			if not obj:IsDescendantOf(marine) then
 				touched:Disconnect()
 				g.Pin:Play()
+
 				task.wait(0.5)
 				local x = Instance.new("Explosion",workspace)
 				x.Position = g.Position
 				x.BlastRadius = 16
 				x.BlastPressure = 50000
 				x.DestroyJointRadiusPercent = 0
-				x.Hit:Connect(function(obj,dist)
+
+				x.Hit:Connect(function(obj, dist)
 					local human = obj.Parent:FindFirstChild("Humanoid")
 					if human then
-						core.applyDamage(human,20-dist)
+						core.applyDamage(human, 20 - dist)
 					end
 				end)
+
 				g:Destroy()
 				debrisService:AddItem(x,2)
 			end
@@ -494,6 +490,7 @@ function combat:ThrowGrenade()
 		local attach0 = g.Attach0
 		local attach1 = g.Attach1
 		local t = Instance.new("Trail",g)
+
 		t.Attachment0 = attach0
 		t.Attachment1 = attach1
 		t.Lifetime = 0.5
@@ -503,6 +500,7 @@ function combat:ThrowGrenade()
 		core.spawn(function()
 			task.wait(1)
 			self:SetWeaponCool(true)
+
 			task.wait(5)
 			self:SetGrenadeCool(true)
 			self.Grenade.Transparency = 0
@@ -532,7 +530,7 @@ function combat:Stab()
 		end
 		
 		local human = self:GetTarget().Parent.Humanoid
-		core.applyDamage(human,math.random(minKnifeDamage,maxKnifeDamage))
+		core.applyDamage(human,math.random(minKnifeDamage, maxKnifeDamage))
 		if human.Health <= 0 then
 			self:FindTarget()
 		end

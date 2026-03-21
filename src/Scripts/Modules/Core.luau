@@ -22,7 +22,9 @@ local tags = {}
 function core.runAtTS(tag: StringValue, delayTime: IntValue, func: Function)
 	if tags[tag] then
 		if core.tick() - tags[tag].ts > delayTime then
-			if func then func() end
+			if func then 
+				func()
+			end
 			tags[tag].ts = core.tick()
 			return true
 		end
@@ -30,7 +32,9 @@ function core.runAtTS(tag: StringValue, delayTime: IntValue, func: Function)
 		tags[tag] = {
 			ts = core.tick()
 		}
-		if func then func() end
+		if func then 
+			func() -- yes
+		end
 		return true
 	end
 	return false
@@ -44,16 +48,16 @@ function core.findYaw(pos1: Vector3, pos2: Vector3, part: Instance)
 
 	local desiredAngle = math.deg(rot)+yOrientation+90
 	if desiredAngle > 180 then
-		desiredAngle = -(360-desiredAngle)
-	elseif desiredAngle <-180 then
-		desiredAngle = 360+desiredAngle
+		desiredAngle = - (360 - desiredAngle)
+	elseif desiredAngle < -180 then
+		desiredAngle = 360 + desiredAngle
 	end	
 
 	return desiredAngle
 end
 
 function core.checkDist(pos1,pos2)
-	if typeof(pos1) ~= "Vector3" then pos1 = pos1.Position end
+	if typeof(pos1) ~= "Vector3" then pos1 = pos1.Position end -- "vector3" so no more confusing number to calc
 	if typeof(pos2) ~= "Vector3" then pos2 = pos2.Position end
 	return (pos1-pos2).Magnitude
 end
@@ -75,11 +79,11 @@ function core.findRelativePitch(startPos, endPos, relativeInstance, axis)
 	local pitch = math.atan2(math.sqrt(dZ * dZ + dX * dX), dY) --+ math.pi
 	
 	
-	pitch = math.deg(pitch)-90+xRot
+	pitch = math.deg(pitch) - 90 + xRot
 	if pitch > 180 then
-		pitch = -(360-pitch)
+		pitch = -(360 - pitch)
 	elseif pitch < -180 then
-		pitch = 360+pitch
+		pitch = 360 + pitch
 	end
 
 	return pitch
@@ -92,11 +96,11 @@ function core.findRelativeYaw(startPos, endPos, relativeInstance, axis)
 	local yOrientation = relativeInstance.Orientation.Y
 	local rot = math.atan2(endPos.Z-startPos.Z,endPos[axis]-startPos[axis])
 	
-	local desiredAngle = math.deg(rot)+yOrientation+90
+	local desiredAngle = math.deg(rot) + yOrientation + 90
 	if desiredAngle > 180 then
-		desiredAngle = -(360-desiredAngle)
+		desiredAngle = -(360 - desiredAngle)
 	elseif desiredAngle < -180 then
-		desiredAngle = 360+desiredAngle
+		desiredAngle = 360 + desiredAngle
 	end
 	
 	return desiredAngle
@@ -115,15 +119,15 @@ function core.getHuman(instance)
 	return human
 end
 
-
-
 -- TODO: This needs to be fixed at some point
 function core.checkPotentialSight(target)
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterDescendantsInstances = {marine}
+
 	local dist = core.checkDist(myHead,target)
 	local pos2 = Vector3.new(target.Position.X,myHead.Position.Y,target.Position.Z)
 	local result = workspace:Raycast(myHead.Position,(pos2 - myHead.Position).Unit*dist,raycastParams)
+
 	if result then
 		return false
 	else
@@ -132,10 +136,12 @@ function core.checkPotentialSight(target)
 	end
 end
 
-function core.raycast(origin,dir)
+function core.raycast(origin, dir)
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterDescendantsInstances = {marine}
+
 	local result = workspace:Raycast(origin,dir,raycastParams)
+
 	if result then
 		return true, result
 	else
@@ -147,6 +153,7 @@ local allies = {}
 local team = marine.Settings.Team.Value
 local attackPlayers = marine.Settings.AttackPlayers.Value
 local playerTeamsList = marine.Settings.PlayerTeams
+
 function core.isAlly(model)
 	--Check and see if they are on our team, if they are break the loop.
 	local isAlly = false
@@ -183,8 +190,9 @@ function core.isAlly(model)
 	return isAlly
 end
 
-function core.checkDirectPath(npc,target,ignoredInstance,origin)
+function core.checkDirectPath(npc, target, ignoredInstance, origin)
 	origin = origin or myHead.Position
+	
 	local dist = core.checkDist(origin,target.Position)
 	local dir = (target.Position - origin).Unit
 	local raycastParams = RaycastParams.new()
@@ -201,10 +209,10 @@ function core.checkDirectPath(npc,target,ignoredInstance,origin)
 	if (result and result.Instance.Parent and result.Instance:IsDescendantOf(targetParent)) or not result then
 
 		--Raycast down every 2 studs to ensure there are not holes in the ground
-		local down = Vector3.new(0,-5,0)
+		local down = Vector3.new(0, -5, 0)
 		for i = 0, dist, 3 do
-			local newOrigin = origin + dir*i
-			result = workspace:Raycast(newOrigin,down,raycastParams)
+			local newOrigin = origin + dir * i
+			result = workspace:Raycast(newOrigin, down, raycastParams)
 			if not result then
 				return false
 			end
@@ -218,16 +226,15 @@ end
 
 function core.isLine(p1: Vector3, p2: Vector3, ignoreList: Table)
 	ignoreList = ignoreList or {}
-	
+
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterDescendantsInstances = ignoreList
-	
+
 	local dist = core.checkDist(p1,p2)
-	
+
 	local result = workspace:Raycast(p1, (p2 - p1).Unit*dist, raycastParams)
-	
+
 	return not result
-	
 end
 
 function core.calcRandomOffset(accuracy: IntValue)
