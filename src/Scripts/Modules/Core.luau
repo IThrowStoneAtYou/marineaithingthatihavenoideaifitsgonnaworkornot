@@ -92,17 +92,17 @@ end
 -- Finds the angle between a Part/Attachment and the end position
 function core.findRelativeYaw(startPos, endPos, relativeInstance, axis)
 	axis = axis or "x"
-	
+
 	local yOrientation = relativeInstance.Orientation.Y
 	local rot = math.atan2(endPos.Z-startPos.Z,endPos[axis]-startPos[axis])
-	
+
 	local desiredAngle = math.deg(rot) + yOrientation + 90
 	if desiredAngle > 180 then
 		desiredAngle = -(360 - desiredAngle)
 	elseif desiredAngle < -180 then
 		desiredAngle = 360 + desiredAngle
 	end
-	
+
 	return desiredAngle
 end
 
@@ -110,12 +110,12 @@ function core.getHuman(instance)
 	if instance:IsA("Tool") or instance:IsA("Accessory") then
 		instance = instance.Parent
 	end
-	
+
 	local human = instance:FindFirstChild("Humanoid")
 	if not human and instance.Parent and instance.Parent:IsA("Model") then
 		return core.getHuman(instance.Parent)
 	end
-	
+
 	return human
 end
 
@@ -149,6 +149,8 @@ function core.raycast(origin, dir)
 	end
 end
 
+-- require explanations here...
+
 local allies = {}
 local team = marine.Settings.Team.Value
 local attackPlayers = marine.Settings.AttackPlayers.Value
@@ -158,19 +160,23 @@ function core.isAlly(model)
 	--Check and see if they are on our team, if they are break the loop.
 	local isAlly = false
 	local targetTeam
+
 	if model:FindFirstChild("Team") then
 		targetTeam = model.Team.Value
 	elseif model:FindFirstChild("Settings") and model.Settings:FindFirstChild("Team") then
 		targetTeam = model.Settings.Team.Value			
 	end
+
 	for _,ally in ipairs(allies) do
 		if model.Name == ally then
 			isAlly = true
 		end
 	end
+
 	if (targetTeam and targetTeam == team) or (not attackPlayers and game.Players:GetPlayerFromCharacter(model)) then
 		isAlly = true
 	end
+
 	if attackPlayers then
 		local player = playersService:GetPlayerFromCharacter(model)
 		if player then
@@ -186,18 +192,18 @@ function core.isAlly(model)
 			end
 		end
 	end
-	
+
 	return isAlly
 end
 
 function core.checkDirectPath(npc, target, ignoredInstance, origin)
 	origin = origin or myHead.Position
-	
+
 	local dist = core.checkDist(origin,target.Position)
 	local dir = (target.Position - origin).Unit
 	local raycastParams = RaycastParams.new()
-	raycastParams.FilterDescendantsInstances = {npc.Instance,ignoredInstance}
-	local result = workspace:Raycast(origin,dir*dist,raycastParams)
+	raycastParams.FilterDescendantsInstances = {npc.Instance, ignoredInstance}
+	local result = workspace:Raycast(origin, dir * dist, raycastParams)
 
 	--Just use random parent if we pass a waypoint
 	local targetParent = game.Lighting

@@ -1,5 +1,7 @@
 local Formulas = {}
 
+-- nerd stuff
+
 function Formulas.getAimVector3(myRoot, target, bulletVel)
 	
 	local dist = (myRoot.Position - target.Position).Magnitude
