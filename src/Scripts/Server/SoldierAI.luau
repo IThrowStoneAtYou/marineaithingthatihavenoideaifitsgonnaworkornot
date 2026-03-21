@@ -49,8 +49,8 @@ local myRoot = marine.HumanoidRootPart
 local myHead = marine.Head
 
 -- What the heck does this do...
-local rotAttach1 = Instance.new("Attachment")
-rotAttach1.Parent = workspace.Terrain
+--local rotAttach1 = Instance.new("Attachment")
+--rotAttach1.Parent = workspace.Terrain
 
 -- Sounds
 local hurtSound = myHead.Hurt
@@ -395,7 +395,6 @@ local function attackLoop()
 	while myHuman.Health>0 do
 		
 		if not npc.Vehicle or not npc.Vehicle:IsInVehicle() then
-			
 			if npc:GetTarget() then
 				npc:UpdateFace("Hunting")
 				
@@ -450,10 +449,14 @@ myHuman.Died:Connect(function()
 			npc.Vehicle:Destroy()
 		end
 	end
+
 	npc.Torso.AssemblyLinearVelocity  = Vector3.new(math.random(-25,25),math.random(50,75),math.random(-25,25))
+
 	diedSound:Play()
+
 	npc:YieldM4()
 	npc:UpdateFace("Dead")
+
 	for i,v in ipairs(marine:GetDescendants()) do
 		if v:IsA("BallSocketConstraint") then
 			v.Enabled = true
@@ -463,17 +466,20 @@ myHuman.Died:Connect(function()
 			v:Destroy()
 		end
 	end
+
 	npc.Head.CanCollide = true
+
 	if marine.Settings.Respawn.Value then
 		task.wait(marine.Settings.RespawnDelay.Value)
 		clone.Parent = marine.Parent
 	end
+
 	for i,v in ipairs(marine:GetDescendants()) do
 		if v:IsA("BasePart") or v:IsA("Decal") then
 			game:GetService("TweenService"):Create(v,TweenInfo.new(0.2),{Transparency = 1}):Play()
 		end
 	end
-	rotAttach1:Destroy()
+
 	task.wait(0.2)
 	marine:Destroy()
 end)

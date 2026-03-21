@@ -367,7 +367,7 @@ function combat:Shoot(target)
 				barrel.SmokeEffect:Emit(3)
 				barrel.SparkEffect:Emit(20)
 				lightFlash.Enabled = true 
-			task.	wait(0.05)
+				task.wait(0.05)
 				lightFlash.Enabled = false 
 			end)
 			
@@ -389,11 +389,12 @@ function combat:Shoot(target)
 				coroutine.resume(bulletCoroutine)
 			end
 			
+		--[[
 			--Kick
 			local original = m4.HingeAttach1.Position
 			m4.HingeAttach1.Position = original - Vector3.new(0,0,0.2)
 			tweenService:Create(m4.HingeAttach1, TweenInfo.new(0.1),{Position = original}):Play()
-		
+		--[[]]
 		end
 		
 		if self:GetMag() <= 0 and not shooting then
@@ -417,6 +418,7 @@ function combat:ThrowGrenade()
 		g.Boom.PlayOnRemove = true
 		g.Parent = workspace
 		g.CanCollide = true
+		
 		g.CFrame = marine["Right Arm"].CFrame * CFrame.new(0,-1.3,0) * CFrame.Angles(0,0,math.rad(90))
 		g:SetNetworkOwner(nil)
 		debrisService:AddItem(g,5)
@@ -439,6 +441,7 @@ function combat:ThrowGrenade()
 				Vector3.new(self:GetTarget().Position.X,self.Root.Position.Y,self:GetTarget().Position.Z)
 			)
 		end
+
 		self.Human.AutoRotate = true
 		
 		if self.Human.Health <= 0 then
@@ -449,13 +452,14 @@ function combat:ThrowGrenade()
 		
 		w.Part1 = nil
 		local targetPos = self:GetTarget().Position + (self:GetTarget().Velocity)
+
 		debug.mark(targetPos)
+
 		local dist = core.checkDist(myRoot,self:GetTarget())
 		local aimCFrame = CFrame.lookAt(myRoot.Position,targetPos)
 		--g.Velocity = (aimCFrame.LookVector + Vector3.new(0,1.1,0)) * Vector3.new(dist,dist*1.5,dist)
 		--g.Velocity = (myRoot.CFrame.LookVector + Vector3.new(0,1,0)) * Vector3.new(dist,dist*1.5,dist)
 		g.Velocity = formulas.CalculateArc(g, targetPos, dist*1.3)
-		
 		
 		--Wait until grenade is thrown before it can be primed
 		local touched
@@ -463,18 +467,21 @@ function combat:ThrowGrenade()
 			if not obj:IsDescendantOf(marine) then
 				touched:Disconnect()
 				g.Pin:Play()
+
 				task.wait(0.5)
 				local x = Instance.new("Explosion",workspace)
 				x.Position = g.Position
 				x.BlastRadius = 16
 				x.BlastPressure = 50000
 				x.DestroyJointRadiusPercent = 0
-				x.Hit:Connect(function(obj,dist)
+
+				x.Hit:Connect(function(obj, dist)
 					local human = obj.Parent:FindFirstChild("Humanoid")
 					if human then
-						core.applyDamage(human,20-dist)
+						core.applyDamage(human, 20 - dist)
 					end
 				end)
+
 				g:Destroy()
 				debrisService:AddItem(x,2)
 			end
@@ -483,6 +490,7 @@ function combat:ThrowGrenade()
 		local attach0 = g.Attach0
 		local attach1 = g.Attach1
 		local t = Instance.new("Trail",g)
+
 		t.Attachment0 = attach0
 		t.Attachment1 = attach1
 		t.Lifetime = 0.5
@@ -492,6 +500,7 @@ function combat:ThrowGrenade()
 		core.spawn(function()
 			task.wait(1)
 			self:SetWeaponCool(true)
+
 			task.wait(5)
 			self:SetGrenadeCool(true)
 			self.Grenade.Transparency = 0
