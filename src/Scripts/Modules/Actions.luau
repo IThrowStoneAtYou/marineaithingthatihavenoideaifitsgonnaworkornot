@@ -13,6 +13,7 @@ local formulas = require(modules.Formulas)
 -- references --
 local marine = script.Parent.Parent.Parent
 local myHuman = marine.Humanoid
+local myAnimator = myHuman.Animator
 local myRoot = marine.HumanoidRootPart
 local m4 = marine.M4
 local reloadSound = m4.Reload
@@ -54,16 +55,16 @@ local xAxisAttach = Instance.new("Attachment")
 xAxisAttach.Parent = workspace.Terrain
 xAxisAttach.CFrame = myRoot.CFrame
 
-local reloadAnimation = myHuman:LoadAnimation(marine.Reload)
+local reloadAnimation = myAnimator:LoadAnimation(marine.Reload)
 reloadAnimation.Priority = Enum.AnimationPriority.Action
 
-local IdleM4 = myHuman:LoadAnimation(marine.IdleM4)
+local IdleM4 = myAnimator:LoadAnimation(marine.IdleM4)
 IdleM4.Priority = Enum.AnimationPriority.Action
 
-local YieldM4Anim = myHuman:LoadAnimation(marine.YieldM4)
+local YieldM4Anim = myAnimator:LoadAnimation(marine.YieldM4)
 YieldM4Anim.Priority = Enum.AnimationPriority.Action  -- and again
 
-local LowerM4Anim = myHuman:LoadAnimation(marine.LowerM4)
+local LowerM4Anim = myAnimator:LoadAnimation(marine.LowerM4)
 LowerM4Anim.Priority = Enum.AnimationPriority.Action  -- and again
 
 YieldM4Anim:Play()
