@@ -16,7 +16,7 @@ local myHuman = marine.Humanoid
 local myRoot = marine.HumanoidRootPart
 local m4 = marine.M4
 local reloadSound = m4.Reload
-local magazine = marine.Mag
+--local magazine = marine.Mag
 
 local myHead = marine.Head
 local myTorso = marine.Torso
@@ -51,13 +51,16 @@ local xAxisAttach = Instance.new("Attachment")
 xAxisAttach.Parent = workspace.Terrain
 xAxisAttach.CFrame = myRoot.CFrame
 
-local m4Hinge = m4.HingeConstraint
-local m4HingeAttach = m4.HingeAttach1
-local torsoHingeAttach = myTorso.HingeAttach0
-local torsoHingAttachOrgPos = torsoHingeAttach.Position
-local headHinge = myHead.HingeConstraint
-
 local reloadAnimation = myHuman:LoadAnimation(marine.Reload)
+reloadAnimation.Priority = Enum.AnimationPriority.Action
+
+local IdleM4 = myHuman:LoadAnimation(marine.IdleM4) -- for Draw() (yes i know this kinda got me confused.)
+reloadAnimation.Priority = Enum.AnimationPriority.Action
+
+local YieldM4 = myHuman:LoadAnimation(marine.YieldM4)
+reloadAnimation.Priority = Enum.AnimationPriority.Action
+
+local LowerM4 = myHuman:LoadAnimation(marine.LowerM4)
 reloadAnimation.Priority = Enum.AnimationPriority.Action
 
 function actions:Crouch()
@@ -151,7 +154,7 @@ function actions:Aim()
 			canSee = self:CheckSightToTarget()
 			if not canSee then
 				self.BodyRotate.Enabled = false
-			--	self.Human.AutoRotate = true
+				--	self.Human.AutoRotate = true
 			else
 				self.BodyRotate.Enabled = true
 			end
@@ -185,21 +188,13 @@ function actions:Aim()
 		rootJoint.C0 = rootJointOrg * CFrame.fromEulerAnglesYXZ(math.rad(tilt), 0, 0)
 		lHip.C0 = lHipOrg * CFrame.fromEulerAnglesYXZ(0, 0, math.rad(-tilt))
 		rHip.C0 = rHipOrg * CFrame.fromEulerAnglesYXZ(0, 0, math.rad(tilt))
-
-		-- Gun and head pitch via hinge
-		xAxisAttach.WorldCFrame = CFrame.lookAt(self.M4.Position, aimPos)
-		self.M4.HingeConstraint.Attachment0.WorldCFrame = CFrame.new(self.M4.HingeConstraint.Attachment0.WorldPosition) * CFrame.fromEulerAnglesYXZ(math.rad(0), math.rad(self.Root.Orientation.Y), 0)
-		self.M4.HingeConstraint.TargetAngle = xAxisAttach.Orientation.X
-		headHinge.TargetAngle = xAxisAttach.Orientation.X
-
+		
 		-- Body yaw via AlignOrientation directly
 		self.BodyRotate.CFrame = CFrame.new(myRoot.Position, Vector3.new(
 			aimPos.X,
 			myRoot.Position.Y,
 			aimPos.Z
 			))
-
-		torsoHingeAttach.Position = torsoHingAttachOrgPos + Vector3.new(0, tilt / 90, 0)
 
 		if self:GetM4Equipped() then
 			self.Neck.C0 = CFrame.new(0, 1, 0) * CFrame.Angles(-1.5 + math.rad(xAxisAttach.Orientation.X), math.rad(15), math.rad(180))
@@ -229,24 +224,12 @@ function actions:Reload()
 
 	self:YieldM4()
 
-	m4Weld.Part0 = nil
-	self.M4.CFrame = lArm.CFrame * CFrame.new(0.5,-0.2,0) * CFrame.Angles(math.rad(-90),math.rad(0),math.rad(0))
-	m4Weld.Part0 = lArm
-
 	reloadAnimation:Play()
 	reloadAnimation:AdjustSpeed(3)
 
 	task.wait(0.2)
 
-	local fakeMag = magazine:Clone()
-	fakeMag.CanCollide = true
-	fakeMag.Parent = ignoreFolder
-	debrisService:AddItem(fakeMag,4)
-	magazine.Transparency = 1
-
 	reloadAnimation.Stopped:Wait()
-
-	magazine.Transparency = 0
 
 	self:SetReloading(false)
 	self:SetMag(self.Settings.M4.MagSize.Value)
@@ -259,30 +242,9 @@ function actions:DrawM4()
 		self:SetM4Equipped(true)
 		self:SetM4Lowered(false)
 		self.M4.Equip:Play()
-
-	--	xAxisAttach.CFrame = myTorso.CFrame
-		xAxisAttach.WorldCFrame = myTorso.CFrame
-
-		--M4 Setup
-		m4Weld.Part0 = nil
-		self.M4.CFrame = self.Root.CFrame * CFrame.new(0.65,-1.6,0) * CFrame.Angles(math.rad(-90),math.rad(0),math.rad(0))
-		m4HingeAttach.WorldPosition = torsoHingeAttach.WorldPosition		
-		m4Hinge.Enabled = true
-
-		--Right Arm Setup
-		rShoulder.Part1 = nil
-		rArmWeld.Part1 = nil --x 1.25
-		rArmWeld.Enabled = false
-		rArm.CFrame = m4.CFrame * CFrame.new(0.7,-0.4,1.5) * CFrame.Angles(math.rad(80),math.rad(0),math.rad(-10))
-		rArmWeld.Part1 = rArm
-		rArmWeld.Enabled = true
-
-		--Left Arm Setup 
-		lShoulder.Part1 = nil
-		lArmWeld.Part1 = nil
-		lArm.CFrame = m4.CFrame * CFrame.new(-1,-0.3,0.8) * CFrame.Angles(math.rad(90),math.rad(-3),math.rad(28)) --x84
-		lArmWeld.Part1 = lArm
-
+		
+		
+		
 		task.wait(0.5)
 	end
 end
@@ -296,19 +258,7 @@ function actions:YieldM4()
 
 		self.M4.Equip:Play()
 
-		--Right Arm setup
-		rArmWeld.Part1 = nil
-		rShoulder.Part1 = rArm
-
-		--Left Arm Setup
-		lArmWeld.Part1 = nil
-		lShoulder.Part1 = lArm
-
-		--M4 Setup
-		m4Weld.Part0 = nil
-		m4Hinge.Enabled = false
-		self.M4.CFrame = myTorso.CFrame * CFrame.new(0,0,0.5) * CFrame.Angles(math.rad(-90),math.rad(45),math.rad(-270))
-		m4Weld.Part0 = myTorso
+		
 	end
 end
 
@@ -320,24 +270,8 @@ function actions:LowerM4()
 		self:SetM4Lowered(true)
 
 		self.M4.Equip:Play()
+		
 
-		--M4 Setup
-		m4Hinge.Enabled = false
-		m4Weld.Part0 = nil
-		self.M4.CFrame = myTorso.CFrame * CFrame.new(-0.5,-0.9,-1) * CFrame.Angles(math.rad(-75),math.rad(55),math.rad(75)) -- z 35 x 0
-		m4Weld.Part0 = myTorso
-
-		--Right Arm Setup
-		rShoulder.Part1 = nil 
-		rArmWeld.Part1 = nil
-		rArm.CFrame = myRoot.CFrame * CFrame.new(1.3,-0.2,-0.3) * CFrame.Angles(math.rad(30),math.rad(14),math.rad(-25))
-		rArmWeld.Part1 = rArm
-
-		--Left Arm Setup 
-		lShoulder.Part1 = nil 
-		lArmWeld.Part1 = nil
-		lArm.CFrame = myRoot.CFrame * CFrame.new(-1.3,-0.1,-0.3) * CFrame.Angles(math.rad(40),math.rad(-3),math.rad(10)) --x84
-		lArmWeld.Part1 = lArm
 
 		task.wait(0.5)
 	end
