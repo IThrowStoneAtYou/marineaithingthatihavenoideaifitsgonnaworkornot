@@ -445,12 +445,6 @@ myHuman.Died:Connect(function()
 		end
 	end
 
-	if npc.xAxisAttach then
-		npc.xAxisAttach:Destroy()
-		npc.xAxisAttach = nil
-		print("does this work?")
-	end
-
 	npc.Torso.AssemblyLinearVelocity  = Vector3.new(math.random(-25,25),math.random(50,75),math.random(-25,25))
 
 	diedSound:Play()
@@ -469,6 +463,7 @@ myHuman.Died:Connect(function()
 	end
 
 	npc.Head.CanCollide = true
+	
 
 	if marine.Settings.Respawn.Value then
 		task.wait(marine.Settings.RespawnDelay.Value)
@@ -490,10 +485,12 @@ local soundSpeeds = {0.9,0.95,1,1.05,1.1}
 myHuman.HealthChanged:Connect(function(health)
 	if health < oldHealth and hurtSound.IsPlaying == false then
 		npc:SetTookDamage(true)
+		
 		if math.random(3) == 1 then
 			hurtSound.PlaybackSpeed = soundSpeeds[math.random(#soundSpeeds)]
 			hurtSound:Play()
 		end
+		
 		task.spawn(function()
 			npc:UpdateFace("Hurt")
 			task.wait(1)
