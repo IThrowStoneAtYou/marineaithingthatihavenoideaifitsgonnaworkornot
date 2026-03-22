@@ -214,7 +214,7 @@ function combat.pushBullet(npc, bullet, speed, iterations)
 						if human.Health <= 0 then
 							npc:FindTarget()
 						end
-						
+
 					elseif not human then
 						local newBulletHole = combat.getBulletHole(result.Instance)
 						if newBulletHole then
@@ -233,14 +233,14 @@ function combat.pushBullet(npc, bullet, speed, iterations)
 										local chunk = Instance.new("Part")
 										chunk.Color = result.Instance.Color
 										chunk.Material = result.Instance.Material
-										
+
 										local size = math.random(5)/20
 										chunk.Size = Vector3.new(size,size,size)
 										chunk.CFrame = CFrame.new(result.Position)
 										chunk.Anchored = false
 										chunk.AssemblyLinearVelocity = Vector3.new(math.random(-20,20),math.random(10,20),math.random(-20,20))
 										chunk.Parent = workspace
-										
+
 										debrisService:AddItem(chunk,1)
 									end
 								end

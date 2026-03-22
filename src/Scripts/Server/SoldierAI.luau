@@ -65,48 +65,48 @@ npc:Inherit(combat)
 
 local function vehicleLogic(targetDist)
 	if npc.Vehicle.Role == "Driver" then
-		
-		
+
+
 		-- Don't start driving to the target until we have all of our passengers. 
 		if npc.Vehicle:PickupNearestAlly() then
 
 			task.wait(1)
-			
+
 		elseif targetDist > npc.Settings.Vehicle.MinDrivingDist.Value then 
 			-- If we do have a vehicle determine how to drive there or to exit etc
 			if npc.Vehicle:DriveTo(npc:GetTarget().Position,npc:GetTarget()) then
-				
+
 			elseif not npc.Vehicle.Instance:GetAttribute("Gunner") then
 				npc.Vehicle:Blacklist(npc:GetTarget())
 				npc.Vehicle = npc.Vehicle:Exit()
-				
+
 			else
 				npc.Vehicle:GetFree()
 			end
-			
+
 		elseif not npc.Vehicle.Instance:GetAttribute("Gunner") and npc.Vehicle:GetSpeed() < 2 then
 			-- Exit vehicle
 			-- TODO: Never exits when gunner is present. Eventually they should probably get out.
 			npc.Vehicle = npc.Vehicle:Exit()
-			
+
 		elseif npc.Vehicle.Instance:GetAttribute("Gunner") and targetDist < npc.Settings.Vehicle.MinDrivingDist.Value / 1.5 then
 			-- This case is when we have a gunner and we are too close to the enemy. 
-			
+
 
 			-- Is the enemy more towards the front of us or the back?
 			local enemyYaw = math.abs(core.findYaw(npc.Vehicle.Body.Position, npc:GetTarget().Position, npc.Vehicle.Body))
-			
+
 			-- Maybe we can just reverse straight back from the enemy?
 			if not npc.Vehicle:CheckBumper(true) and enemyYaw < 90 then
 				npc.Vehicle:TurnTowardsAngle(0)
 				npc.Vehicle:SmartGo(-0.4, 1)
 
-				
+
 				-- If the back bumper is clear of obstacles we can back away.
 			elseif not npc.Vehicle:CheckBumper() and enemyYaw > 90 then
 				npc.Vehicle:TurnTowardsAngle(0)
 				npc.Vehicle:SmartGo(1, 1)
-				
+
 			else
 				-- TODO: Need some way of finding a location to drive to 
 				task.wait(1)
@@ -150,7 +150,7 @@ local function getVehicleSpot(targetDist)
 		end
 		return
 	end
-	
+
 	local veh, vehDist = vehicle.findNearest(npc, true, "Passenger")
 	if veh and vehDist <= targetDist then
 
@@ -178,7 +178,7 @@ local function getVehicleSpot(targetDist)
 	if veh and vehDist <= targetDist then
 
 		npc.Vehicle = vehicle.new(veh, npc)
-		
+
 		local vehPath = pathing.getVehiclePath(veh, npc:GetTarget().Position, 20)
 
 		if vehPath then
@@ -212,36 +212,35 @@ local function getVehicleSpot(targetDist)
 	end
 end
 
-
 local idleIndex = 5
 local function movementLogic(target)
 	local targetDist = core.checkDist(target,npc.Root)
-	
+
 	local canSee = npc:CheckSightToTarget()
-	
+
 	idleIndex -= 1
 	if canSee then
 		npc:SetTargetLastSeen()
 		idleIndex = 5 --100
 	end
-	
+
 	-- Vehicle logic first
 	if npc.Vehicle and npc.Vehicle:IsInVehicle() and npc.Vehicle:Validate() then
 		vehicleLogic(targetDist)
-	
+
 	elseif (targetDist > 50 or not canSee) and (myRoot.Position.Y < target.Position.Y-10 or idleIndex <= 0) then
 		-- This case we need to either drive to the target or pathfind to it. 
-		
+
 		if core.runAtTS("SoldierAICheckForVehicle", 5) and targetDist > npc.Settings.Vehicle.MinDrivingDist.Value and npc:CanEnterVehicle() then
 			getVehicleSpot(targetDist)
 		else
 			npc:PathToLocation(target)
 		end
-		
+
 	elseif (targetDist > 30 or not canSee) and core.checkPotentialSight(target) then
 		npc:SlowAdvance()
 		task.wait(0.3)
-		
+
 	elseif npc.Settings.Movement.CanCrouch.Value and targetDist > 50 and canSee and npc:GetM4Equipped() and math.random(5) == 1
 		and core.isLine(npc.Root.Position - Vector3.new(0,1.5,0), target.Position, {npc.Instance, target.Parent}) then
 		npc:Crouch()
@@ -254,16 +253,16 @@ local function movementLogic(target)
 			task.wait(0.5)
 		end
 		npc:Stand()
-		
+
 	elseif npc.Settings.Movement.CanStrafe.Value and targetDist > 50 and targetDist < 90 and canSee and npc:GetM4Equipped() then
 		npc:Strafe()
 		task.wait(0.5)
-		
+
 	elseif npc.Settings.Movement.CanBackpedal.Value and targetDist > 4 and targetDist < 50 and canSee 
 		and math.abs(myRoot.Position.Y - target.Position.Y) < 2 and (npc:GetM4Aimed() or npc:GetReloading()) then
 		npc:Retreat()
 		task.wait(0.2)
-		
+
 	elseif (targetDist < 4 and canSee) or npc:GetKnifeEquipped() then
 		npc:ChaseTargetDirectly()
 	else
@@ -289,27 +288,27 @@ end
 
 local function searchTargetLoop()
 	while myHuman.Health>0 do
-		
+
 		-- Updates the target based on any that are really close to the NPC.
 		-- Looks good for quick updates when melee units are attacking. 
 		if core.runAtTS("GetIncomingAttackers",2) then
 			npc:GetIncomingAttackers()
 		end
-		
+
 		-- Keep track of what vehicle the target is potentially using.
 		-- We need to know so we can ignore it during raycasting.
 		if npc:GetTarget() and core.runAtTS("UpdateEnemyVehicle",2) then
 			npc:SetTargetVehicle(core.getEnemyVehicleInstance(npc:GetTarget()))
 		end
-		
+
 		-- Find a new target if the current one is not valid
 		-- Also find a new target if we are hurt. This should make the marine look more reactionary to damage. 
 		if not npc:CheckTarget() or npc:GetTookDamage() then
 			npc:SetTookDamage(false)
 			--npc:SetTarget(nil)
 			npc:FindTarget()
-			
-		-- Find a new target if we can't see the target try finding one we can see.
+
+			-- Find a new target if we can't see the target try finding one we can see.
 		elseif not npc:CheckSightToTarget() and npc:GetSeeTarget() then
 			npc:FindTarget()
 			if not npc:GetTarget() then
@@ -322,14 +321,14 @@ end
 
 local function aimingLoop()
 	while myHuman.Health>0 do
-		
+
 		-- Vehicle integrity check
 		if npc.Vehicle and npc.Vehicle:IsInVehicle() then 
 			if not npc.Vehicle:Validate() then
 				npc.Vehicle = nil
 			end
 		end
-		
+
 		if npc:GetTarget() then
 			if npc:CheckSightToTarget() and npc:GetM4Equipped() then
 				npc:Aim()
@@ -345,10 +344,10 @@ end
 
 local function attackLogic()
 	npc:UpdateFace("Attacking")
-	
+
 	local distance = core.checkDist(myRoot,npc:GetTarget())
 	if distance > meleeRange then
-		
+
 		-- If there is a cluster of enemies far enough away throw grenade.
 		-- 5/20/22 added randomness, probably gotta tweak
 		if npc:CheckClusterAtTarget() and distance < 100 and distance > 40 and npc:GetGrenadeCool() and math.random(10) == 1  then
@@ -389,11 +388,11 @@ end
 
 local function attackLoop()
 	while myHuman.Health>0 do
-		
+
 		if not npc.Vehicle or not npc.Vehicle:IsInVehicle() then
 			if npc:GetTarget() then
 				npc:UpdateFace("Hunting")
-				
+
 				-- If we have a target we can see
 				if npc:CheckSightToTarget() and npc:CheckTarget() and core.checkDist(myRoot,npc:GetTarget()) < mySettings.M4.Range.Value then
 					attackLogic()
@@ -431,7 +430,7 @@ marine.Query.OnInvoke = function()
 	else
 		cleanNPC.Vehicle = nil
 	end
-	
+
 	cleanNPC.Root = npc.Root
 
 	return cleanNPC
@@ -444,6 +443,12 @@ myHuman.Died:Connect(function()
 		else
 			npc.Vehicle:Destroy()
 		end
+	end
+
+	if npc.xAxisAttach then
+		npc.xAxisAttach:Destroy()
+		npc.xAxisAttach = nil
+		print("does this work?")
 	end
 
 	npc.Torso.AssemblyLinearVelocity  = Vector3.new(math.random(-25,25),math.random(50,75),math.random(-25,25))
