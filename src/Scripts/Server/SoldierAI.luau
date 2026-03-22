@@ -463,6 +463,7 @@ myHuman.Died:Connect(function()
 	end
 
 	npc.Head.CanCollide = true
+	
 
 	if marine.Settings.Respawn.Value then
 		task.wait(marine.Settings.RespawnDelay.Value)
