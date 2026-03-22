@@ -51,11 +51,13 @@ local rootJointOrg = rootJoint.C0
 --Align Orientations
 local bodyRotate = myRoot.AlignOrientation
 
+--[[
 local xAxisAttach = Instance.new("Attachment")
 xAxisAttach.Parent = workspace.Terrain
 xAxisAttach.CFrame = myRoot.CFrame
 
 actions.xAxisAttach = xAxisAttach
+--[[]]
 
 local reloadAnimation = myAnimator:LoadAnimation(marine.Reload)
 reloadAnimation.Priority = Enum.AnimationPriority.Action
@@ -220,7 +222,7 @@ function actions:Aim()
 				CFrame.new(lShoulder.C0.Position) * CFrame.Angles(x, ly, lz), 0.3)
 		end
 
-		task.wait()
+		task.wait(0.05)
 	end
 
 	-- Reset everything

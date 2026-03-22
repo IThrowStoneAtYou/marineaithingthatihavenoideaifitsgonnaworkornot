@@ -23,7 +23,9 @@ workspace.ChildAdded:Connect(function(child)
 end)
 
 workspace.ChildRemoved:Connect(function(child)
-	remove(child)
+	if cache[child] then
+		remove(child)
+	end
 end)
 
 -- Watch players
