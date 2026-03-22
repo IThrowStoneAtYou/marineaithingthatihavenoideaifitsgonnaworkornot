@@ -403,6 +403,29 @@ function combat:Shoot(target)
 	end
 end
 
+function combat:FireOnce(targetPos)
+	if self:GetMag() <= 0 then return end
+	self:SetMag(self:GetMag() - 1)
+
+	fireSound:Play()
+
+	local flashCoroutine = coroutine.create(function()
+		barrel.MuzzleFlashEffect:Emit(15)
+		barrel.MuzzleFlashInnerEffect:Emit(15)
+		barrel.SmokeEffect:Emit(3)
+		barrel.SparkEffect:Emit(20)
+		lightFlash.Enabled = true
+		task.wait(0.02)
+		lightFlash.Enabled = false
+	end)
+	coroutine.resume(flashCoroutine)
+
+	local bullet = combat.getBullet()
+	local direction = (targetPos - barrel.WorldPosition).Unit
+	bullet.CFrame = CFrame.new(barrel.WorldPosition, barrel.WorldPosition + direction)
+	combat.pushBullet(self, bullet, bulletSpeed, iterations)
+end
+
 function combat:ThrowGrenade()
 	if self:GetWeaponCool() and self:GetGrenadeCool() then
 		self:SetWeaponCool(false)

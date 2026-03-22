@@ -240,8 +240,68 @@ function actions:Aim()
 	self:SetM4Aimed(false)
 end
 
+
+function actions:FindCover()
+	local myPos = self.Root.Position
+	local target = self:GetTarget()
+	if not target then return nil end
+
+	local targetPos = target.Position
+	local bestCover = nil
+	local bestScore = math.huge
+
+	-- Check nearby parts as potential cover
+	local params = OverlapParams.new()
+	params.FilterDescendantsInstances = {self.Instance}
+	params.FilterType = Enum.RaycastFilterType.Exclude
+
+	local nearbyParts = workspace:GetPartBoundsInRadius(myPos, 20, params)
+
+	for _, part in ipairs(nearbyParts) do
+		-- Skip small parts, characters, bullets
+		if part.Size.Magnitude < 3 then continue end
+		if part:IsDescendantOf(self.Instance) then continue end
+		if part.Name == "Bullet" then continue end
+
+		-- Find a position behind the part relative to the target
+		local fromTarget = (part.Position - targetPos).Unit
+		local coverPos = part.Position + fromTarget * (part.Size.Magnitude * 0.5 + 2)
+		coverPos = Vector3.new(coverPos.X, myPos.Y, coverPos.Z)
+
+		-- Raycast down to find ground
+		local groundResult = workspace:Raycast(coverPos + Vector3.new(0, 3, 0), Vector3.new(0, -10, 0))
+		if not groundResult then continue end
+		coverPos = groundResult.Position
+
+		-- Check that cover actually blocks line of sight from target
+		local rayParams = RaycastParams.new()
+		rayParams.FilterDescendantsInstances = {self.Instance}
+		local sightResult = workspace:Raycast(targetPos, (coverPos - targetPos).Unit * (coverPos - targetPos).Magnitude, rayParams)
+		if not sightResult then continue end -- no obstruction, skip
+
+		-- Score by distance to us (closer is better)
+		local dist = (myPos - coverPos).Magnitude
+		if dist < bestScore then
+			bestScore = dist
+			bestCover = coverPos
+		end
+	end
+
+	return bestCover
+end
+
 function actions:Reload()
-	print("start")
+	-- Try to find cover before reloading
+	local coverPos = self:FindCover()
+	if coverPos then
+		self.Human:MoveTo(coverPos)
+		-- Wait until we reach cover or timeout
+		local moveStart = tick()
+		repeat task.wait(0.1) until 
+		(self.Root.Position - coverPos).Magnitude < 4 
+			or tick() - moveStart > 2
+	end
+
 	self:SetM4Aimed(false)
 	self:SetReloading(true)
 	reloadSound:Play()
@@ -253,17 +313,12 @@ function actions:Reload()
 	reloadAnimation:Play()
 	reloadAnimation:AdjustSpeed(3)
 
-	--	task.wait(reloadAnimation.Length / 3) -- Length divided by speed
-
 	reloadAnimation.Stopped:Wait()
-
-	--	reloadAnimation:Stop()
 
 	self:SetReloading(false)
 	self:SetMag(self.Settings.M4.MagSize.Value)
-	self:SetM4Equipped(false) 
+	self:SetM4Equipped(false)
 	self:DrawM4()
-	print("finish?")
 end
 
 function actions:DrawM4()

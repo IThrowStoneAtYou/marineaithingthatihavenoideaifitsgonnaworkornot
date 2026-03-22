@@ -86,6 +86,9 @@ end
 
 function targeting:SetTargetLastSeen()
 	self.Target.LastSeen = tick()
+	if self:GetTarget() then
+		self.Target.LastSeenPosition = self:GetTarget().Position
+	end
 end
 
 function targeting:CheckTarget()
