@@ -48,10 +48,6 @@ local myHuman = marine.Humanoid
 local myRoot = marine.HumanoidRootPart
 local myHead = marine.Head
 
--- What the heck does this do...
---local rotAttach1 = Instance.new("Attachment")
---rotAttach1.Parent = workspace.Terrain
-
 -- Sounds
 local hurtSound = myHead.Hurt
 local diedSound = myHead.Died
