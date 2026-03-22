@@ -270,12 +270,70 @@ local function movementLogic(target)
 	end
 end
 
+local function getFlankPosition(target)
+	local angles = {90, -90, 120, -120}  -- side and rear angles in degrees
+
+	for _, angle in ipairs(angles) do
+		local rad = math.rad(angle)
+		local dir = Vector3.new(math.sin(rad), 0, math.cos(rad))
+
+		-- Rotate direction relative to target's position from us
+		local toTarget = (target.Position - npc.Root.Position).Unit
+		local flankDir = CFrame.fromAxisAngle(Vector3.new(0,1,0), rad) * toTarget
+
+		local flankPos = target.Position + flankDir * 30
+
+		-- Raycast down to find ground
+		local result = workspace:Raycast(flankPos + Vector3.new(0,5,0), Vector3.new(0,-20,0))
+		if result then
+			flankPos = result.Position
+		end
+
+		-- Make sure there's a clear path on the ground
+		if core.isLine(npc.Root.Position, flankPos, {npc.Instance, target.Parent}) then
+			return flankPos
+		end
+	end
+	return nil
+end
+
+local function shouldFlank()
+	local allies = npc:GetActiveAllies()
+	local target = npc:GetTarget()
+	if not target or #allies == 0 then return false end
+
+	-- Count how many allies are already engaging from the front
+	local frontCount = 0
+	for _, ally in ipairs(allies) do
+		local toTarget = (target.Position - ally.Position).Unit
+		local toAlly = (ally.Position - target.Position).Unit
+		-- If ally is within 45 degrees of directly facing the target
+		if toTarget:Dot((target.Position - npc.Root.Position).Unit) > 0.7 then
+			frontCount += 1
+		end
+	end
+
+	-- If there's already someone engaging from the front, consider flanking
+	return frontCount >= 1 and math.random(2) == 1
+end
+
 
 local function movementLoop()
-	while myHuman.Health>0 do
+	while myHuman.Health > 0 do
 		local target = npc:GetTarget()
 		if target then
-			movementLogic(target)
+			if npc.Settings.Movement.CanFlank.Value and shouldFlank() then
+				local flankPos = getFlankPosition(target)
+				if flankPos then
+					npc.Human:MoveTo(flankPos)
+					print("flank")
+					task.wait(1)
+				else
+					movementLogic(target)
+				end
+			else
+				movementLogic(target)
+			end
 		else
 			if mySettings.Wander.Value and math.random(4) == 3 then
 				npc:WalkRandom()
@@ -386,6 +444,49 @@ local function turretLogic()
 	task.wait(1)
 end
 
+local suppressTS = 0
+local suppressDuration = 3 -- how long to suppress in seconds
+
+local function canSuppress()
+	-- Only suppress if we recently lost sight and have allies
+	local timeSinceSeen = tick() - npc:GetTargetLastSeen()
+	return timeSinceSeen < 5 
+		and timeSinceSeen > 0.5 -- small delay before suppressing
+		and #npc:GetActiveAllies() > 0 -- only bother if allies can take advantage
+		and npc:GetM4Equipped()
+		and not npc:GetReloading()
+end
+
+local function suppress()
+	local lastKnown = npc.Target.LastSeenPosition
+	if not lastKnown then return end
+
+	local timeStart = tick()
+	while tick() - timeStart < suppressDuration do
+		if npc:CheckSightToTarget() then break end
+		if npc:GetMag() <= 0 then break end
+		if myHuman.Health <= 0 then break end
+
+		npc.BodyRotate.Enabled = true
+		npc.BodyRotate.CFrame = CFrame.new(myRoot.Position, Vector3.new(
+			lastKnown.X,
+			myRoot.Position.Y,
+			lastKnown.Z
+			))
+
+		local sprayPos = lastKnown + Vector3.new(
+			math.random(-5, 5),
+			math.random(0, 3),
+			math.random(-5, 5)
+		)
+
+		npc:FireOnce(sprayPos)
+		task.wait(60 / 600)
+	end
+
+	npc.BodyRotate.Enabled = false
+end
+
 local function attackLoop()
 	while myHuman.Health>0 do
 
@@ -394,8 +495,10 @@ local function attackLoop()
 				npc:UpdateFace("Hunting")
 
 				-- If we have a target we can see
-				if npc:CheckSightToTarget() and npc:CheckTarget() and core.checkDist(myRoot,npc:GetTarget()) < mySettings.M4.Range.Value then
+				if npc:CheckSightToTarget() and npc:CheckTarget() and core.checkDist(myRoot, npc:GetTarget()) < mySettings.M4.Range.Value then
 					attackLogic()
+				elseif canSuppress() then
+					suppress()
 				elseif npc:GetM4Equipped() and not npc:GetM4Aimed() then
 					npc:LowerM4()
 				end
