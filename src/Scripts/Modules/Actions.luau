@@ -55,6 +55,8 @@ local xAxisAttach = Instance.new("Attachment")
 xAxisAttach.Parent = workspace.Terrain
 xAxisAttach.CFrame = myRoot.CFrame
 
+actions.xAxisAttach = xAxisAttach
+
 local reloadAnimation = myAnimator:LoadAnimation(marine.Reload)
 reloadAnimation.Priority = Enum.AnimationPriority.Action
 
@@ -249,9 +251,11 @@ function actions:Reload()
 	reloadAnimation:Play()
 	reloadAnimation:AdjustSpeed(3)
 
-	task.wait(reloadAnimation.Length / 3) -- Length divided by speed
+	--	task.wait(reloadAnimation.Length / 3) -- Length divided by speed
 
-	reloadAnimation:Stop()
+	reloadAnimation.Stopped:Wait()
+
+	--	reloadAnimation:Stop()
 
 	self:SetReloading(false)
 	self:SetMag(self.Settings.M4.MagSize.Value)
