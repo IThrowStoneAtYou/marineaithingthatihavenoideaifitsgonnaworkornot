@@ -106,8 +106,16 @@ function targeting:CheckSightToTarget(dist: IntValue)
 	end
 
 	local ignoreList = {self.Instance}
+	
+	-- Ignore all friendly models so they don't block LOS
+	for _, ally in ipairs(self:GetActiveAllies()) do
+		if ally.Parent then
+			table.insert(ignoreList, ally.Parent)
+		end
+	end
 
 	raycastParams.FilterDescendantsInstances = ignoreList
+	
 	local result = workspace:Raycast(self.Head.Position,(self:GetTarget().Position - self.Head.Position).Unit*dist,raycastParams)
 	if result and result.Instance.Parent then
 		if result.Instance:IsDescendantOf(self:GetTarget().Parent) or result.Instance.Name == "Bullet" then

@@ -185,6 +185,13 @@ function NPC:CheckSight(target)
 	
 	local ignoreList = {self.Instance}
 	
+	-- Ignore all friendly models so they don't block LOS
+	for _, ally in ipairs(self:GetActiveAllies()) do
+		if ally.Parent then
+			table.insert(ignoreList, ally.Parent)
+		end
+	end
+	
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterDescendantsInstances = ignoreList
 	

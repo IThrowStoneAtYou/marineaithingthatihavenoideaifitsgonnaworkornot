@@ -249,7 +249,13 @@ function actions:FindCover()
 
 	-- Early exit: if target can't even see us, no need to find cover
 	local sightParams = RaycastParams.new()
-	sightParams.FilterDescendantsInstances = {self.Instance}
+	local ignoreList = {self.Instance}
+	for _, ally in ipairs(self:GetActiveAllies()) do
+		if ally.Parent then
+			table.insert(ignoreList, ally.Parent)
+		end
+	end
+	sightParams.FilterDescendantsInstances = ignoreList
 	sightParams.FilterType = Enum.RaycastFilterType.Exclude
 	local toUs = (myPos - targetPos)
 	local sightResult = workspace:Raycast(targetPos, toUs.Unit * toUs.Magnitude, sightParams)
