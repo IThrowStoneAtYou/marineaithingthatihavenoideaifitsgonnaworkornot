@@ -27,7 +27,6 @@ local lArmWeld = myTorso["Left Arm Weld"]
 local rArmWeld = myTorso["Right Arm Weld"]
 local lArm = marine["Left Arm"]
 local rArm = marine["Right Arm"]
-local m4Weld = m4["M4 Weld"]
 
 local neckOrg = neck.C0
 local rShoulderOrg = rShoulder.C0
@@ -304,7 +303,7 @@ function actions:Reload()
 	-- Try to find and actually reach cover
 	local coverPos = self:FindCover()
 	if coverPos then
-		self.Human.WalkSpeed = 16 -- Sprint to cover
+--		self.Human.WalkSpeed = 16 -- Sprint to cover
 		self.Human:MoveTo(coverPos)
 
 		local moveStart = tick()
@@ -352,16 +351,9 @@ function actions:Reload()
 	self:SetMag(self.Settings.M4.MagSize.Value)
 
 	-- Reload done, return to combat
-	self.Human.WalkSpeed = 16
+--	self.Human.WalkSpeed = 16
 	self:SetM4Equipped(false)
 	self:DrawM4()
-
-	-- Move back toward last known target position so the attack loop can take over
-	local target = self:GetTarget()
-	if target then
-		local returnPos = target.Position
-		self.Human:MoveTo(returnPos)
-	end
 end
 
 function actions:DrawM4()

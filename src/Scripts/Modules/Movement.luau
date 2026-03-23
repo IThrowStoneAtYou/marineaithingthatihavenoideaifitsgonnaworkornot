@@ -144,6 +144,33 @@ function movement:WalkRandom()
 	end
 end
 
+function movement:RetreatToAlly()
+	local allies = self:GetActiveAllies()
+	if #allies == 0 then
+		-- No allies, just fall back from target
+		self:Retreat()
+		return false
+	end
+
+	-- Find closest ally
+	local closest = nil
+	local closestDist = math.huge
+	for _, ally in ipairs(allies) do
+		local d = core.checkDist(self.Root, ally)
+		if d < closestDist and d > 5 then -- don't pick an ally we're already on top of
+			closestDist = d
+			closest = ally
+		end
+	end
+
+	if closest then
+		self.Human:MoveTo(closest.Position)
+		return true
+	end
+
+	return false
+end
+
 --When strafing make sure you can see target from end pos
 function movement:Strafe()
 	local goalPos = self:GetTarget().Position

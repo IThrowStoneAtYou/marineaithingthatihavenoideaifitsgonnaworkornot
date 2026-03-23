@@ -56,6 +56,9 @@ function NPC.new(o)
 	o.ActiveAllies = {}
 	o.Mag = o.Settings.M4.MagSize.Value
 	
+	o.Retreating = false
+	o.RegroupTS = 0
+	
 	return o
 end
 
@@ -240,6 +243,14 @@ function NPC:FacingTarget()
 	else
 		return false
 	end
+end
+
+function NPC:SetRetreating(val)
+	self.Retreating = val
+end
+
+function NPC:GetRetreating()
+	return self.Retreating
 end
 
 return NPC

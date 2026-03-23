@@ -59,49 +59,28 @@ npc:Inherit(movement)
 npc:Inherit(targeting)
 npc:Inherit(combat)
 
-local idleIndex = 5
-local function movementLogic(target)
-	local targetDist = core.checkDist(target,npc.Root)
+local function alliesBlockingPath(target)
+	local allies = npc:GetActiveAllies()
+	if #allies == 0 then return false end
 
-	local canSee = npc:CheckSightToTarget()
+	local toTarget = (target.Position - npc.Root.Position).Unit
 
-	idleIndex -= 1
-	if canSee then
-		npc:SetTargetLastSeen()
-		idleIndex = 5 --100
-	end
+	local blockedCount = 0
+	for _, ally in ipairs(allies) do
+		local toAlly = (ally.Position - npc.Root.Position)
+		local dist = toAlly.Magnitude
 
-	if (targetDist > 30 or not canSee) and core.checkPotentialSight(target) then
-		npc:SlowAdvance()
-		task.wait(0.3)
+		-- Project ally onto our path to target
+		local dot = toAlly.Unit:Dot(toTarget)
 
-	elseif npc.Settings.Movement.CanCrouch.Value and targetDist > 50 and canSee and npc:GetM4Equipped() and math.random(5) == 1
-		and core.isLine(npc.Root.Position - Vector3.new(0,1.5,0), target.Position, {npc.Instance, target.Parent}) then
-		npc:Crouch()
-		-- Busy waiting... sue me
-		local startedCrouch = core.tick()
-		while npc:CheckSightToTarget() and core.checkDist(npc.Root,target) > 50 do
-			if core.tick() - startedCrouch > 5 and math.random(3) == 1 then
-				break
-			end
-			task.wait(0.5)
+		-- Ally is roughly in front of us toward the target
+		-- and close enough to matter
+		if dot > 0.8 and dist < core.checkDist(npc.Root, target) then
+			blockedCount += 1
 		end
-		npc:Stand()
-
-	elseif npc.Settings.Movement.CanStrafe.Value and targetDist > 50 and targetDist < 90 and canSee and npc:GetM4Equipped() then
-		npc:Strafe()
-		task.wait(0.5)
-
-	elseif npc.Settings.Movement.CanBackpedal.Value and targetDist > 4 and targetDist < 50 and canSee 
-		and math.abs(myRoot.Position.Y - target.Position.Y) < 2 and (npc:GetM4Aimed() or npc:GetReloading()) then
-		npc:Retreat()
-		task.wait(0.2)
-
-	elseif (targetDist < 4 and canSee) or npc:GetKnifeEquipped() then
-		npc:ChaseTargetDirectly()
-	else
-		task.wait(0.5)
 	end
+
+	return blockedCount >= 1
 end
 
 local function getFlankPosition(target)
@@ -151,6 +130,65 @@ local function shouldFlank()
 	return frontCount >= 1 and math.random(2) == 1
 end
 
+
+local idleIndex = 5
+local function movementLogic(target)
+	local targetDist = core.checkDist(target,npc.Root)
+
+	local canSee = npc:CheckSightToTarget()
+
+	idleIndex -= 1
+	if canSee then
+		npc:SetTargetLastSeen()
+		idleIndex = 5 --100
+	end
+	
+	if (targetDist > 50 or not canSee) and (myRoot.Position.Y < target.Position.Y - 10 or idleIndex <= 0) then
+		-- If allies are already in the direct path, flank instead of walking through them
+		if alliesBlockingPath(target) then
+			local flankPos = getFlankPosition(target)
+			if flankPos then
+				npc.Human:MoveTo(flankPos)
+				task.wait(1)
+			else
+				npc:PathToLocation(target)
+			end
+		else
+			npc:PathToLocation(target)
+		end
+
+	elseif (targetDist > 30 or not canSee) and core.checkPotentialSight(target) then
+		npc:SlowAdvance()
+		task.wait(0.3)
+
+	elseif npc.Settings.Movement.CanCrouch.Value and targetDist > 50 and canSee and npc:GetM4Equipped() and math.random(5) == 1
+		and core.isLine(npc.Root.Position - Vector3.new(0,1.5,0), target.Position, {npc.Instance, target.Parent}) then
+		npc:Crouch()
+		-- Busy waiting... sue me
+		local startedCrouch = core.tick()
+		while npc:CheckSightToTarget() and core.checkDist(npc.Root,target) > 50 do
+			if core.tick() - startedCrouch > 5 and math.random(3) == 1 then
+				break
+			end
+			task.wait(0.5)
+		end
+		npc:Stand()
+
+	elseif npc.Settings.Movement.CanStrafe.Value and targetDist > 50 and targetDist < 90 and canSee and npc:GetM4Equipped() then
+		npc:Strafe()
+		task.wait(0.5)
+
+	elseif npc.Settings.Movement.CanBackpedal.Value and targetDist > 4 and targetDist < 50 and canSee 
+		and math.abs(myRoot.Position.Y - target.Position.Y) < 2 and (npc:GetM4Aimed() or npc:GetReloading()) then
+		npc:Retreat()
+		task.wait(0.2)
+
+	elseif (targetDist < 4 and canSee) or npc:GetKnifeEquipped() then
+		npc:ChaseTargetDirectly()
+	else
+		task.wait(0.5)
+	end
+end
 
 local function movementLoop()
 	while myHuman.Health > 0 do
@@ -218,6 +256,51 @@ local function aimingLoop()
 			task.wait(2)
 		end
 		task.wait(0.1)
+	end
+end
+
+local retreatHealthThreshold = 30 -- percentage, tweak as needed
+local regroupDuration = 8 -- seconds to stay regrouped before re-engaging
+
+local function shouldRetreat()
+	local healthPercent = (myHuman.Health / myHuman.MaxHealth) * 100
+	return healthPercent < retreatHealthThreshold
+		and #npc:GetActiveAllies() > 0
+		and not npc:GetRetreating()
+end
+
+local function regroupLoop()
+	while myHuman.Health > 0 do
+		if shouldRetreat() then
+			npc:SetRetreating(true)
+			npc:LowerM4()
+			npc:UpdateFace("Hurt")
+
+			-- Sprint to ally
+			npc.Human.WalkSpeed = 16
+			npc:RetreatToAlly()
+
+			-- Wait near ally before re-engaging
+			local reGroupStart = tick()
+			repeat
+				task.wait(0.5)
+
+				-- Keep moving toward ally if they move
+				if #npc:GetActiveAllies() > 0 then
+					npc:RetreatToAlly()
+				end
+
+				-- If enemy gets too close, cut regroup short
+				if npc:GetTarget() and core.checkDist(npc.Root, npc:GetTarget()) < 15 then
+					break
+				end
+
+			until tick() - reGroupStart > regroupDuration
+				or myHuman.Health <= 0
+
+			npc:SetRetreating(false)
+		end
+		task.wait(1)
 	end
 end
 
@@ -289,7 +372,7 @@ end
 
 local function attackLoop()
 	while myHuman.Health > 0 do
-		if npc:GetTarget() then
+		if npc:GetTarget() and not npc:GetRetreating() then
 			npc:UpdateFace("Hunting")
 
 			if npc:CheckSightToTarget() and npc:CheckTarget() and core.checkDist(myRoot, npc:GetTarget()) < mySettings.M4.Range.Value then
@@ -299,7 +382,7 @@ local function attackLoop()
 			elseif npc:GetM4Equipped() and not npc:GetM4Aimed() then
 				npc:LowerM4()
 			end
-		else
+		elseif not npc:GetRetreating() then
 			task.wait(2)
 			npc:UpdateFace("Idle")
 			npc:YieldWeapons()
@@ -312,6 +395,7 @@ task.spawn(searchTargetLoop)
 task.spawn(attackLoop)
 task.spawn(movementLoop)
 task.spawn(aimingLoop)
+task.spawn(regroupLoop)
 
 -- Soldier COMMs
 -- Found out you can't pass tables with metamethods using this.
@@ -325,24 +409,24 @@ end
 
 myHuman.Died:Connect(function()
 
-	npc.Torso.AssemblyLinearVelocity  = Vector3.new(math.random(-25,25),math.random(50,75),math.random(-25,25))
+--	npc.Torso.AssemblyLinearVelocity  = Vector3.new(math.random(-25,25),math.random(50,75),math.random(-25,25))
 
 	diedSound:Play()
 
 	npc:YieldM4()
 	npc:UpdateFace("Dead")
-
-	for i,v in ipairs(marine:GetDescendants()) do
-		if v:IsA("BallSocketConstraint") then
-			v.Enabled = true
-		elseif v:IsA("BasePart") and v.Name ~= "myHumanoidRootPart" then
-			v.CanCollide = false
-		elseif v:IsA("Motor6D") then
-			v:Destroy()
-		end
-	end
+	
+	local LL = marine:FindFirstChild("Left Leg")
+	local RL = marine:FindFirstChild("Right Leg")
+	local RA = marine:FindFirstChild("Right Arm")
+	local LA = marine:FindFirstChild("Left Arm")
 
 	npc.Head.CanCollide = true
+	npc.Torso.CanCollide = true
+	npc.LL.CanCollide = true
+	npc.RL.CanCollide = true
+	npc.RA.CanCollide = true
+	npc.LA.CanCollide = true
 	
 
 	if marine.Settings.Respawn.Value then
@@ -365,12 +449,12 @@ local soundSpeeds = {0.9,0.95,1,1.05,1.1}
 myHuman.HealthChanged:Connect(function(health)
 	if health < oldHealth and hurtSound.IsPlaying == false then
 		npc:SetTookDamage(true)
-		
+
 		if math.random(3) == 1 then
 			hurtSound.PlaybackSpeed = soundSpeeds[math.random(#soundSpeeds)]
 			hurtSound:Play()
 		end
-		
+
 		task.spawn(function()
 			npc:UpdateFace("Hurt")
 			task.wait(1)
