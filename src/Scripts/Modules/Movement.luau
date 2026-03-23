@@ -40,14 +40,19 @@ end
 
 local path = pathfindingService:CreatePath()
 function movement:PathToLocation(target)
-	if not target or (typeof(target) == "Instance" and not target.Parent) then return end
-
-	local pathingToTarget = false
-	if target == self:GetTarget() then
-		pathingToTarget = true
+	-- Accept either a Vector3 or an Instance
+	local targetPos
+	if typeof(target) == "Vector3" then
+		targetPos = target
+	elseif typeof(target) == "Instance" and target.Parent then
+		targetPos = target.Position
+	else
+		return
 	end
 
-	path:ComputeAsync(myRoot.Position, target.Position)
+	local pathingToTarget = typeof(target) ~= "Vector3" and target == self:GetTarget()
+
+	path:ComputeAsync(myRoot.Position, targetPos)
 
 	if path.Status == Enum.PathStatus.NoPath then
 		return false
@@ -55,16 +60,15 @@ function movement:PathToLocation(target)
 
 	local waypoints = path:GetWaypoints()
 
-	if waypoints[1] and core.checkDist(waypoints[1],myRoot) > 10 then
+	if waypoints[1] and core.checkDist(waypoints[1], myRoot) > 10 then
 		task.wait()
 		self:PathToLocation(target)
 	end
 
 	debugger.visualizePath(path)
-
 	local canSee = self:CheckSightToTarget()
 
-	for _,waypoint in ipairs(waypoints) do
+	for _, waypoint in ipairs(waypoints) do
 		if waypoint.Action == Enum.PathWaypointAction.Jump then
 			self.Human.Jump = true
 		end
@@ -75,14 +79,12 @@ function movement:PathToLocation(target)
 				tries += 1
 				myHuman.Jump = true
 				task.wait(0.1)
-				if tries > 10 then
-					break
-				end
+				if tries > 10 then break end
 			end
 		end)
 
 		local moveSuccess = movement.moveToFinished()
-		local dist = core.checkDist(self.Root, target.Position)
+		local dist = core.checkDist(self.Root, targetPos)
 
 		if core.raycast(self.Root.Position, (waypoint.Position - self.Root.Position).Unit * 2, {self.Instance}) then
 			self.Human.Jump = true
@@ -91,15 +93,12 @@ function movement:PathToLocation(target)
 
 		if not moveSuccess then
 			break
-
-		elseif not target.Parent then
+		elseif typeof(target) == "Instance" and not target.Parent then
 			break
-
 		elseif pathingToTarget then
-			if core.runAtTS("PathToLocationCheckSight",1) then
+			if core.runAtTS("PathToLocationCheckSight", 1) then
 				canSee = self:CheckSightToTarget()
 			end
-
 			if dist < 30 and canSee then
 				break
 			elseif canSee and target.Position.Y <= myRoot.Position.Y - 5 then
@@ -108,10 +107,13 @@ function movement:PathToLocation(target)
 			elseif target ~= self:GetTarget() or not self:CheckTarget() then
 				break
 			end
+		elseif dist < 5 then
+			-- For Vector3 targets, stop when close enough
+			break
 		end
 	end
 
-	return true 
+	return true
 end
 
 function movement:WalkRandom()
@@ -142,6 +144,37 @@ function movement:WalkRandom()
 	else
 		task.wait(2)
 	end
+end
+
+function movement:BreakAway(fromTarget)
+	-- Move directly away from the target, find a safe distance
+	local awayDir = (self.Root.Position - fromTarget.Position).Unit
+	local origin = self.Root.Position
+
+	-- Try to get 40 studs away
+	local maxIterations = 40
+	repeat
+		maxIterations -= 1
+		local nextPos = origin + awayDir * 2
+
+		-- Check ground and no wall in the way
+		if not core.raycast(origin, awayDir * 2, {self.Instance}) 
+			and core.raycast(nextPos, Vector3.new(0, -7, 0)) then
+			origin = nextPos
+		else
+			-- Try veering slightly left or right if directly blocked
+			local altDir = CFrame.fromAxisAngle(Vector3.new(0,1,0), math.rad(45)) * awayDir
+			if not core.raycast(origin, altDir * 2, {self.Instance}) then
+				origin = origin + altDir * 2
+			else
+				break
+			end
+		end
+
+		if maxIterations <= 0 then break end
+	until (origin - self.Root.Position).Magnitude >= 35
+
+	self.Human:MoveTo(origin)
 end
 
 --When strafing make sure you can see target from end pos

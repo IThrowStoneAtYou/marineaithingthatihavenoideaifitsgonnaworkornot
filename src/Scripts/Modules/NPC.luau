@@ -56,6 +56,9 @@ function NPC.new(o)
 	o.ActiveAllies = {}
 	o.Mag = o.Settings.M4.MagSize.Value
 	
+	o.Retreating = false
+	o.RegroupTS = 0
+	
 	return o
 end
 
@@ -182,6 +185,13 @@ function NPC:CheckSight(target)
 	
 	local ignoreList = {self.Instance}
 	
+	-- Ignore all friendly models so they don't block LOS
+	for _, ally in ipairs(self:GetActiveAllies()) do
+		if ally.Parent then
+			table.insert(ignoreList, ally.Parent)
+		end
+	end
+	
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterDescendantsInstances = ignoreList
 	
@@ -240,6 +250,14 @@ function NPC:FacingTarget()
 	else
 		return false
 	end
+end
+
+function NPC:SetRetreating(val)
+	self.Retreating = val
+end
+
+function NPC:GetRetreating()
+	return self.Retreating
 end
 
 return NPC

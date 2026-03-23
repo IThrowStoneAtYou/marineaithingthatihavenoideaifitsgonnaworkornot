@@ -124,15 +124,14 @@ function core.checkPotentialSight(target)
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterDescendantsInstances = {marine}
 
-	local dist = core.checkDist(myHead,target)
-	local pos2 = Vector3.new(target.Position.X,myHead.Position.Y,target.Position.Z)
-	local result = workspace:Raycast(myHead.Position,(pos2 - myHead.Position).Unit*dist,raycastParams)
+	local dist = core.checkDist(myHead, target)
+	local pos2 = Vector3.new(target.Position.X, myHead.Position.Y, target.Position.Z)
+	local result = workspace:Raycast(myHead.Position, (pos2 - myHead.Position).Unit * dist, raycastParams)
 
 	if result then
 		return false
 	else
-		--return true
-		return false
+		return true -- was commented out, uncomment this
 	end
 end
 
