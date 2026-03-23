@@ -40,49 +40,38 @@ end
 
 local path = pathfindingService:CreatePath()
 function movement:PathToLocation(target)
-	--if not target or not target.Parent then return end
 	if not target or (typeof(target) == "Instance" and not target.Parent) then return end
-	
+
 	local pathingToTarget = false
 	if target == self:GetTarget() then
 		pathingToTarget = true
 	end
-	
-	-- Added so that we can path to attachments which specific spots on a vehicle to enter.
-	local posProperty = "Position"
-	if target:IsA("Attachment") then
-		posProperty = "WorldPosition"
-	end
-	
-	path:ComputeAsync(myRoot.Position, target[posProperty])
-	
+
+	path:ComputeAsync(myRoot.Position, target.Position)
+
 	if path.Status == Enum.PathStatus.NoPath then
 		return false
 	end
-	
+
 	local waypoints = path:GetWaypoints()
-	
-	--Make sure that path is actually valid
+
 	if waypoints[1] and core.checkDist(waypoints[1],myRoot) > 10 then
 		task.wait()
 		self:PathToLocation(target)
 	end
-	
+
 	debugger.visualizePath(path)
-	
+
 	local canSee = self:CheckSightToTarget()
-	
-	
+
 	for _,waypoint in ipairs(waypoints) do
-		if waypoint.Action == Enum.PathWaypointAction.Jump and (not self.Vehicle or not self.Vehicle:IsInVehicle()) then
+		if waypoint.Action == Enum.PathWaypointAction.Jump then
 			self.Human.Jump = true
 		end
 		self.Human:MoveTo(waypoint.Position)
 		task.spawn(function()
 			local tries = 0
-			while self.Human.WalkToPoint.Y > self.Root.Position.Y - 1 and (not self.Vehicle or not self.Vehicle:IsInVehicle())
-				and myHuman.Health>0 do
-				
+			while self.Human.WalkToPoint.Y > self.Root.Position.Y - 1 and myHuman.Health > 0 do
 				tries += 1
 				myHuman.Jump = true
 				task.wait(0.1)
@@ -91,55 +80,37 @@ function movement:PathToLocation(target)
 				end
 			end
 		end)
-		
-		-- Bunch of logic to determine when the path should be interrupted.
+
 		local moveSuccess = movement.moveToFinished()
-		local dist = core.checkDist(self.Root,target[posProperty])
-		
-		-- Sometimes the NPC will get stuck behind it's vehicle or other unanchored objects.
-		-- I think a simple jump could fix this.
+		local dist = core.checkDist(self.Root, target.Position)
+
 		if core.raycast(self.Root.Position, (waypoint.Position - self.Root.Position).Unit * 2, {self.Instance}) then
-			if not self.Vehicle or not self.Vehicle:IsInVehicle() then
-				self.Human.Jump = true
-				task.wait(1.2)
-			end
+			self.Human.Jump = true
+			task.wait(1.2)
 		end
-		
-		
+
 		if not moveSuccess then
 			break
-			
-		elseif core.checkDist(target[posProperty],waypoints[#waypoints]) > 30 then
-			-- Kind of an exception for when pathing to an attachment which is probably a vehicle
-			-- Try to path to it again.
-			self:PathToLocation(target)
-			break
-			
+
 		elseif not target.Parent then
 			break
-			
+
 		elseif pathingToTarget then
-			
-			-- Additional checks when we are pathing to a target.
 			if core.runAtTS("PathToLocationCheckSight",1) then
 				canSee = self:CheckSightToTarget()
 			end
-			
+
 			if dist < 30 and canSee then
 				break
-				
-			elseif (canSee and target.Position.Y <= myRoot.Position.Y-5) then
+			elseif canSee and target.Position.Y <= myRoot.Position.Y - 5 then
 				self.Human:MoveTo(myRoot.Position)
 				break
 			elseif target ~= self:GetTarget() or not self:CheckTarget() then
 				break
 			end
-			
-		elseif target:IsA("Attachment") and dist < self.Settings.Vehicle.EnterDist.Value then
-			break
 		end
 	end
-	
+
 	return true 
 end
 

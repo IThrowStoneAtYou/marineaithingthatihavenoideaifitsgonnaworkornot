@@ -20,7 +20,6 @@ local myHuman = marine.Humanoid
 local m4 = marine.M4
 local barrel = m4.Barrel
 local lightFlash = barrel.MuzzleDynamicLight
-local chamber = m4.Chamber
 local fireSound = m4.Fire
 local impact = m4.Impact
 

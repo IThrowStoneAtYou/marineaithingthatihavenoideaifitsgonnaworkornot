@@ -100,19 +100,12 @@ function targeting:CheckSightToTarget(dist: IntValue)
 	if not self:GetTarget() then
 		return false
 	end
+	
 	if not dist then
 		dist = self.Settings.M4.Range.Value
 	end
 
 	local ignoreList = {self.Instance}
-	if self.Vehicle and self.Vehicle:IsInVehicle() then
-		table.insert(ignoreList, self.Vehicle.Instance)
-	end
-
-	local enemyTargetVehicle = self:GetTargetVehicle()
-	if enemyTargetVehicle then
-		table.insert(ignoreList, enemyTargetVehicle)
-	end
 
 	raycastParams.FilterDescendantsInstances = ignoreList
 	local result = workspace:Raycast(self.Head.Position,(self:GetTarget().Position - self.Head.Position).Unit*dist,raycastParams)
