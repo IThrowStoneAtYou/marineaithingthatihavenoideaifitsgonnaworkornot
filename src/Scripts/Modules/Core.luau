@@ -22,7 +22,7 @@ local tags = {}
 function core.runAtTS(tag: StringValue, delayTime: IntValue, func: Function)
 	if tags[tag] then
 		if core.tick() - tags[tag].ts > delayTime then
-			if func then
+			if func then 
 				func()
 			end
 			tags[tag].ts = core.tick()
@@ -32,7 +32,7 @@ function core.runAtTS(tag: StringValue, delayTime: IntValue, func: Function)
 		tags[tag] = {
 			ts = core.tick()
 		}
-		if func then
+		if func then 
 			func() -- yes
 		end
 		return true
@@ -70,15 +70,15 @@ end
 
 -- Finds the angle between a Part/Attachment and the end position
 function core.findRelativePitch(startPos, endPos, relativeInstance, axis)
-	
+
 	local dX = startPos.X - endPos.X
 	local dY = startPos.Y - endPos.Y
 	local dZ = startPos.Z - endPos.Z
-	
+
 	local xRot = relativeInstance.Orientation.X
 	local pitch = math.atan2(math.sqrt(dZ * dZ + dX * dX), dY) --+ math.pi
-	
-	
+
+
 	pitch = math.deg(pitch) - 90 + xRot
 	if pitch > 180 then
 		pitch = -(360 - pitch)
@@ -149,8 +149,6 @@ function core.raycast(origin, dir)
 	end
 end
 
--- require explanations here...
-
 local allies = {}
 local team = marine.Settings.Team.Value
 local attackPlayers = marine.Settings.AttackPlayers.Value
@@ -160,23 +158,19 @@ function core.isAlly(model)
 	--Check and see if they are on our team, if they are break the loop.
 	local isAlly = false
 	local targetTeam
-
 	if model:FindFirstChild("Team") then
 		targetTeam = model.Team.Value
 	elseif model:FindFirstChild("Settings") and model.Settings:FindFirstChild("Team") then
 		targetTeam = model.Settings.Team.Value			
 	end
-
 	for _,ally in ipairs(allies) do
 		if model.Name == ally then
 			isAlly = true
 		end
 	end
-
 	if (targetTeam and targetTeam == team) or (not attackPlayers and game.Players:GetPlayerFromCharacter(model)) then
 		isAlly = true
 	end
-
 	if attackPlayers then
 		local player = playersService:GetPlayerFromCharacter(model)
 		if player then
@@ -202,8 +196,8 @@ function core.checkDirectPath(npc, target, ignoredInstance, origin)
 	local dist = core.checkDist(origin,target.Position)
 	local dir = (target.Position - origin).Unit
 	local raycastParams = RaycastParams.new()
-	raycastParams.FilterDescendantsInstances = {npc.Instance, ignoredInstance}
-	local result = workspace:Raycast(origin, dir * dist, raycastParams)
+	raycastParams.FilterDescendantsInstances = {npc.Instance,ignoredInstance}
+	local result = workspace:Raycast(origin,dir*dist,raycastParams)
 
 	--Just use random parent if we pass a waypoint
 	local targetParent = game.Lighting
@@ -253,19 +247,6 @@ function core.calcRandomOffset(accuracy: IntValue)
 	end
 
 	return offset
-end
-
-function core.getEnemyVehicleInstance(target)
-	if not target or not target.Parent then return end
-	-- Get target vehicle information if necssary
-	-- We want to ignore their vehicle so we can shoot it
-	local query = target.Parent:FindFirstChild("Query")
-	if query then
-		local targetNPC = query:Invoke()
-		if targetNPC.Vehicle and targetNPC.Vehicle.InVehicle and targetNPC.Vehicle.Instance then
-			return targetNPC.Vehicle.Instance
-		end
-	end
 end
 
 return core

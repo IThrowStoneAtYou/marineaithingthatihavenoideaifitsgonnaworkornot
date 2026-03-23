@@ -42,43 +42,42 @@ local path = pathfindingService:CreatePath()
 function movement:PathToLocation(target)
 	--if not target or not target.Parent then return end
 	if not target or (typeof(target) == "Instance" and not target.Parent) then return end
-
+	
 	local pathingToTarget = false
 	if target == self:GetTarget() then
 		pathingToTarget = true
 	end
-
+	
 	-- Added so that we can path to attachments which specific spots on a vehicle to enter.
 	local posProperty = "Position"
 	if target:IsA("Attachment") then
 		posProperty = "WorldPosition"
 	end
-
+	
 	path:ComputeAsync(myRoot.Position, target[posProperty])
-
+	
 	if path.Status == Enum.PathStatus.NoPath then
 		return false
 	end
-
+	
 	local waypoints = path:GetWaypoints()
-
+	
 	--Make sure that path is actually valid
 	if waypoints[1] and core.checkDist(waypoints[1],myRoot) > 10 then
 		task.wait()
 		self:PathToLocation(target)
 	end
-
+	
 	debugger.visualizePath(path)
-
+	
 	local canSee = self:CheckSightToTarget()
-
+	
+	
 	for _,waypoint in ipairs(waypoints) do
 		if waypoint.Action == Enum.PathWaypointAction.Jump and (not self.Vehicle or not self.Vehicle:IsInVehicle()) then
 			self.Human.Jump = true
 		end
-		
 		self.Human:MoveTo(waypoint.Position)
-
 		task.spawn(function()
 			local tries = 0
 			while self.Human.WalkToPoint.Y > self.Root.Position.Y - 1 and (not self.Vehicle or not self.Vehicle:IsInVehicle())

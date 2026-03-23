@@ -240,17 +240,28 @@ function actions:Aim()
 	self:SetM4Aimed(false)
 end
 
-
 function actions:FindCover()
 	local myPos = self.Root.Position
 	local target = self:GetTarget()
 	if not target then return nil end
+	print("cover calc")
 
 	local targetPos = target.Position
+
+	-- Early exit: if target can't even see us, no need to find cover
+	local sightParams = RaycastParams.new()
+	sightParams.FilterDescendantsInstances = {self.Instance}
+	sightParams.FilterType = Enum.RaycastFilterType.Exclude
+	local toUs = (myPos - targetPos)
+	local sightResult = workspace:Raycast(targetPos, toUs.Unit * toUs.Magnitude, sightParams)
+	if not sightResult or not sightResult.Instance:IsDescendantOf(self.Instance) then
+		-- Something is blocking the target's view of us already, or we're out of range
+		return nil
+	end
+
 	local bestCover = nil
 	local bestScore = math.huge
 
-	-- Check nearby parts as potential cover
 	local params = OverlapParams.new()
 	params.FilterDescendantsInstances = {self.Instance}
 	params.FilterType = Enum.RaycastFilterType.Exclude
@@ -258,32 +269,28 @@ function actions:FindCover()
 	local nearbyParts = workspace:GetPartBoundsInRadius(myPos, 20, params)
 
 	for _, part in ipairs(nearbyParts) do
-		-- Skip small parts, characters, bullets
 		if part.Size.Magnitude < 3 then continue end
 		if part:IsDescendantOf(self.Instance) then continue end
 		if part.Name == "Bullet" then continue end
 
-		-- Find a position behind the part relative to the target
 		local fromTarget = (part.Position - targetPos).Unit
 		local coverPos = part.Position + fromTarget * (part.Size.Magnitude * 0.5 + 2)
 		coverPos = Vector3.new(coverPos.X, myPos.Y, coverPos.Z)
 
-		-- Raycast down to find ground
 		local groundResult = workspace:Raycast(coverPos + Vector3.new(0, 3, 0), Vector3.new(0, -10, 0))
 		if not groundResult then continue end
 		coverPos = groundResult.Position
 
-		-- Check that cover actually blocks line of sight from target
 		local rayParams = RaycastParams.new()
 		rayParams.FilterDescendantsInstances = {self.Instance}
-		local sightResult = workspace:Raycast(targetPos, (coverPos - targetPos).Unit * (coverPos - targetPos).Magnitude, rayParams)
-		if not sightResult then continue end -- no obstruction, skip
+		local coverSightResult = workspace:Raycast(targetPos, (coverPos - targetPos).Unit * (coverPos - targetPos).Magnitude, rayParams)
+		if not coverSightResult then continue end
 
-		-- Score by distance to us (closer is better)
 		local dist = (myPos - coverPos).Magnitude
 		if dist < bestScore then
 			bestScore = dist
 			bestCover = coverPos
+			print("cover ")
 		end
 	end
 
@@ -291,19 +298,46 @@ function actions:FindCover()
 end
 
 function actions:Reload()
-	-- Try to find cover before reloading
-	local coverPos = self:FindCover()
-	if coverPos then
-		self.Human:MoveTo(coverPos)
-		-- Wait until we reach cover or timeout
-		local moveStart = tick()
-		repeat task.wait(0.1) until 
-		(self.Root.Position - coverPos).Magnitude < 4 
-			or tick() - moveStart > 2
-	end
-
 	self:SetM4Aimed(false)
 	self:SetReloading(true)
+
+	-- Try to find and actually reach cover
+	local coverPos = self:FindCover()
+	if coverPos then
+		self.Human.WalkSpeed = 16 -- Sprint to cover
+		self.Human:MoveTo(coverPos)
+
+		local moveStart = tick()
+		-- Keep trying to reach cover and break LOS, don't just timeout
+		repeat
+			task.wait(0.1)
+
+			-- If we've broken LOS already, stop moving
+			if not self:CheckSightToTarget() then
+				break
+			end
+
+			-- If cover pos is no longer safe (enemy moved), find a new one
+			if tick() - moveStart > 1.5 then
+				local newCover = self:FindCover()
+				if newCover and (newCover - coverPos).Magnitude > 3 then
+					coverPos = newCover
+					self.Human:MoveTo(coverPos)
+				end
+				moveStart = tick() -- reset so we don't spam FindCover
+			end
+
+		until (self.Root.Position - coverPos).Magnitude < 2.5
+			or tick() - moveStart > 4
+
+		-- Crouch behind cover while reloading
+		if not self:CheckSightToTarget() then
+			self.Human.WalkSpeed = 0
+			self.Human:MoveTo(self.Root.Position)
+		end
+	end
+
+	-- Now safe to reload
 	reloadSound:Play()
 
 	IdleM4:Stop()
@@ -312,13 +346,22 @@ function actions:Reload()
 
 	reloadAnimation:Play()
 	reloadAnimation:AdjustSpeed(3)
-
 	reloadAnimation.Stopped:Wait()
 
 	self:SetReloading(false)
 	self:SetMag(self.Settings.M4.MagSize.Value)
+
+	-- Reload done, return to combat
+	self.Human.WalkSpeed = 16
 	self:SetM4Equipped(false)
 	self:DrawM4()
+
+	-- Move back toward last known target position so the attack loop can take over
+	local target = self:GetTarget()
+	if target then
+		local returnPos = target.Position
+		self.Human:MoveTo(returnPos)
+	end
 end
 
 function actions:DrawM4()
