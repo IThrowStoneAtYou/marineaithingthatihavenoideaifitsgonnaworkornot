@@ -59,6 +59,9 @@ function NPC.new(o)
 	o.Retreating = false
 	o.RegroupTS = 0
 	
+	o.HoldingPosition = false
+	o.PushingToExpected = false
+	
 	return o
 end
 
@@ -259,5 +262,22 @@ end
 function NPC:GetRetreating()
 	return self.Retreating
 end
+
+function NPC:SetHolding(val)
+	self.HoldingPosition = val
+end
+
+function NPC:GetHolding()
+	return self.HoldingPosition
+end
+
+function NPC:SetPushing(val)
+	self.PushingToExpected = val
+end
+
+function NPC:GetPushing()
+	return self.PushingToExpected
+end
+
 
 return NPC

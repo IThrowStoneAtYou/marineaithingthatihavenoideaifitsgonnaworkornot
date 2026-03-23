@@ -16,7 +16,7 @@ CollectionService:AddTag(marine, marine.Settings.Team.Value)
 -----Settings------
 local mySettings = marine.Settings
 
-local meleeRange = mySettings.MeleeRange.Value -- range at which the marine will do melee
+local meleeRange = mySettings.MeleeRange.Value
 local ignoreFolder = mySettings.IgnoreFolder.Value
 if ignoreFolder == nil then
 	if workspace:FindFirstChild("MarineIgnoreFolder") then
@@ -64,17 +64,12 @@ local function alliesBlockingPath(target)
 	if #allies == 0 then return false end
 
 	local toTarget = (target.Position - npc.Root.Position).Unit
-
 	local blockedCount = 0
+
 	for _, ally in ipairs(allies) do
 		local toAlly = (ally.Position - npc.Root.Position)
 		local dist = toAlly.Magnitude
-
-		-- Project ally onto our path to target
 		local dot = toAlly.Unit:Dot(toTarget)
-
-		-- Ally is roughly in front of us toward the target
-		-- and close enough to matter
 		if dot > 0.8 and dist < core.checkDist(npc.Root, target) then
 			blockedCount += 1
 		end
@@ -84,25 +79,19 @@ local function alliesBlockingPath(target)
 end
 
 local function getFlankPosition(target)
-	local angles = {90, -90, 120, -120}  -- side and rear angles in degrees
+	local angles = {90, -90, 120, -120}
 
 	for _, angle in ipairs(angles) do
 		local rad = math.rad(angle)
-		local dir = Vector3.new(math.sin(rad), 0, math.cos(rad))
-
-		-- Rotate direction relative to target's position from us
 		local toTarget = (target.Position - npc.Root.Position).Unit
 		local flankDir = CFrame.fromAxisAngle(Vector3.new(0,1,0), rad) * toTarget
-
 		local flankPos = target.Position + flankDir * 30
 
-		-- Raycast down to find ground
 		local result = workspace:Raycast(flankPos + Vector3.new(0,5,0), Vector3.new(0,-20,0))
 		if result then
 			flankPos = result.Position
 		end
 
-		-- Make sure there's a clear path on the ground
 		if core.isLine(npc.Root.Position, flankPos, {npc.Instance, target.Parent}) then
 			return flankPos
 		end
@@ -115,27 +104,21 @@ local function shouldFlank()
 	local target = npc:GetTarget()
 	if not target or #allies == 0 then return false end
 
-	-- Count how many allies are already engaging from the front
 	local frontCount = 0
 	for _, ally in ipairs(allies) do
 		local toTarget = (target.Position - ally.Position).Unit
-		local toAlly = (ally.Position - target.Position).Unit
-		-- If ally is within 45 degrees of directly facing the target
 		if toTarget:Dot((target.Position - npc.Root.Position).Unit) > 0.7 then
 			frontCount += 1
 		end
 	end
 
-	-- If there's already someone engaging from the front, consider flanking
 	return frontCount >= 1 and math.random(2) == 1
 end
 
-
 local function getApproachPosition(target)
 	local allies = npc:GetActiveAllies()
-
-	-- Figure out which angles are already being approached from
 	local takenAngles = {}
+
 	for _, ally in ipairs(allies) do
 		if ally.Parent then
 			local toTarget = (target.Position - ally.Position)
@@ -144,7 +127,6 @@ local function getApproachPosition(target)
 		end
 	end
 
-	-- Pick an angle that is furthest from all taken angles
 	local bestAngle = 0
 	local bestScore = -1
 
@@ -154,11 +136,8 @@ local function getApproachPosition(target)
 
 		for _, taken in ipairs(takenAngles) do
 			local diff = math.abs(candidate - taken)
-			-- Wrap around
 			if diff > math.pi then diff = math.pi * 2 - diff end
-			if diff < minDiff then
-				minDiff = diff
-			end
+			if diff < minDiff then minDiff = diff end
 		end
 
 		if minDiff > bestScore then
@@ -167,39 +146,99 @@ local function getApproachPosition(target)
 		end
 	end
 
-	-- Build a position at that angle, at a comfortable engagement distance
 	local engageDist = 35
 	local offset = Vector3.new(math.cos(bestAngle) * engageDist, 0, math.sin(bestAngle) * engageDist)
 	local approachPos = target.Position + offset
 
-	-- Raycast down to snap to ground
 	local groundResult = workspace:Raycast(approachPos + Vector3.new(0, 5, 0), Vector3.new(0, -20, 0))
 	if groundResult then
 		approachPos = groundResult.Position
 	end
 
-	-- Make sure there's no wall between us and this spot
 	if not core.isLine(npc.Root.Position, approachPos, {npc.Instance, target.Parent}) then
-		return nil -- fall back to direct path if blocked
+		return nil
 	end
 
 	return approachPos
 end
 
+-- Hold and push state
+local holdDuration = 6
+local pushCooldown = 20
+local lastHoldTS = 0
+local currentlyHolding = false
+
 local idleIndex = 5
 local function movementLogic(target)
-	local targetDist = core.checkDist(target,npc.Root)
-
+	local targetDist = core.checkDist(target, npc.Root)
 	local canSee = npc:CheckSightToTarget()
 
 	idleIndex -= 1
 	if canSee then
 		npc:SetTargetLastSeen()
-		idleIndex = 5 --100
+		idleIndex = 5
+		currentlyHolding = false -- spotted target, cancel hold
 	end
-	
+
 	if (targetDist > 50 or not canSee) and (myRoot.Position.Y < target.Position.Y - 10 or idleIndex <= 0) then
-		if alliesBlockingPath(target) then
+
+		-- Hold and push: stop short, watch, then push
+		if not canSee and targetDist > 20 and not currentlyHolding and tick() - lastHoldTS > pushCooldown then
+			currentlyHolding = true
+			lastHoldTS = tick()
+
+			-- Move to a position short of the target
+			local toTarget = (target.Position - npc.Root.Position)
+			local holdPos = npc.Root.Position + toTarget.Unit * math.max(toTarget.Magnitude - 35, 10)
+			local ground = workspace:Raycast(holdPos + Vector3.new(0,5,0), Vector3.new(0,-20,0))
+			if ground then holdPos = ground.Position end
+
+			npc:PathToLocation(holdPos)
+			npc:DrawM4()
+
+			-- Hold: face expected direction, strafe, wait
+			npc.Human.AutoRotate = false
+			npc.BodyRotate.Enabled = true
+
+			local holdStart = tick()
+			while tick() - holdStart < holdDuration do
+				if myHuman.Health <= 0 then break end
+				if not npc:GetTarget() then break end
+
+				-- Enemy appeared, drop hold immediately
+				if npc:CheckSightToTarget() then
+					currentlyHolding = false
+					break
+				end
+
+				-- Face where enemy is expected
+				npc.BodyRotate.CFrame = CFrame.new(
+					myRoot.Position,
+					Vector3.new(target.Position.X, myRoot.Position.Y, target.Position.Z)
+				)
+
+				if math.random(3) == 1 then
+					local sideDir = math.random(2) == 1 and npc.Root.CFrame.RightVector or -npc.Root.CFrame.RightVector
+					local sidePos = npc.Root.Position + sideDir * math.random(8, 15)
+					local groundCheck = workspace:Raycast(sidePos + Vector3.new(0,3,0), Vector3.new(0,-10,0))
+					if groundCheck and not core.raycast(npc.Root.Position, sideDir * 15, {npc.Instance}) then
+						npc.Human:MoveTo(sidePos)
+					end
+				end
+
+				task.wait(0.5)
+			end
+
+			npc.Human.AutoRotate = true
+			npc.BodyRotate.Enabled = false
+
+			-- Done holding, push forward to target
+			if not npc:CheckSightToTarget() and npc:GetTarget() then
+				currentlyHolding = false
+				npc:PathToLocation(npc:GetTarget())
+			end
+
+		elseif alliesBlockingPath(target) then
 			local flankPos = getFlankPosition(target)
 			if flankPos then
 				npc.Human:MoveTo(flankPos)
@@ -208,10 +247,9 @@ local function movementLogic(target)
 				npc:PathToLocation(target)
 			end
 		else
-			-- Use approach position to spread bots out instead of all pathing to same spot
 			local approachPos = getApproachPosition(target)
 			if approachPos and (npc.Root.Position - approachPos).Magnitude > 10 then
-				npc:PathToLocation(approachPos) -- needs Vector3 support, see below
+				npc:PathToLocation(approachPos)
 			else
 				npc:PathToLocation(target)
 			end
@@ -224,7 +262,6 @@ local function movementLogic(target)
 	elseif npc.Settings.Movement.CanCrouch.Value and targetDist > 50 and canSee and npc:GetM4Equipped() and math.random(5) == 1
 		and core.isLine(npc.Root.Position - Vector3.new(0,1.5,0), target.Position, {npc.Instance, target.Parent}) then
 		npc:Crouch()
-		-- Busy waiting... sue me
 		local startedCrouch = core.tick()
 		while npc:CheckSightToTarget() and core.checkDist(npc.Root,target) > 50 do
 			if core.tick() - startedCrouch > 5 and math.random(3) == 1 then
@@ -252,13 +289,17 @@ end
 
 local function movementLoop()
 	while myHuman.Health > 0 do
+		if npc:GetRetreating() or npc:GetReloading() then
+			task.wait(0.5)
+			continue
+		end
+
 		local target = npc:GetTarget()
 		if target then
 			if npc.Settings.Movement.CanFlank.Value and shouldFlank() then
 				local flankPos = getFlankPosition(target)
 				if flankPos then
 					npc.Human:MoveTo(flankPos)
-					print("flank")
 					task.wait(1)
 				else
 					movementLogic(target)
@@ -277,22 +318,14 @@ local function movementLoop()
 end
 
 local function searchTargetLoop()
-	while myHuman.Health>0 do
-
-		-- Updates the target based on any that are really close to the NPC.
-		-- Looks good for quick updates when melee units are attacking. 
-		if core.runAtTS("GetIncomingAttackers",2) then
+	while myHuman.Health > 0 do
+		if core.runAtTS("GetIncomingAttackers", 2) then
 			npc:GetIncomingAttackers()
 		end
 
-		-- Find a new target if the current one is not valid
-		-- Also find a new target if we are hurt. This should make the marine look more reactionary to damage. 
 		if not npc:CheckTarget() or npc:GetTookDamage() then
 			npc:SetTookDamage(false)
-			--npc:SetTarget(nil)
 			npc:FindTarget()
-
-			-- Find a new target if we can't see the target try finding one we can see.
 		elseif not npc:CheckSightToTarget() and npc:GetSeeTarget() then
 			npc:FindTarget()
 			if not npc:GetTarget() then
@@ -304,7 +337,11 @@ local function searchTargetLoop()
 end
 
 local function aimingLoop()
-	while myHuman.Health>0 do
+	while myHuman.Health > 0 do
+		if npc:GetRetreating() or npc:GetReloading() or currentlyHolding then
+			task.wait(0.5)
+			continue
+		end
 
 		if npc:GetTarget() then
 			if npc:CheckSightToTarget() and npc:GetM4Equipped() then
@@ -319,6 +356,8 @@ local function aimingLoop()
 	end
 end
 
+local reengageTS = 0
+local reengageCooldown = 15
 local retreatHealthThreshold = 50
 local regroupDuration = 10
 
@@ -326,6 +365,7 @@ local function shouldRetreat()
 	local healthPercent = (myHuman.Health / myHuman.MaxHealth) * 100
 	return healthPercent < retreatHealthThreshold
 		and not npc:GetRetreating()
+		and tick() - reengageTS > reengageCooldown
 end
 
 local function regroupLoop()
@@ -336,40 +376,31 @@ local function regroupLoop()
 
 			local target = npc:GetTarget()
 
-			-- Break away from the fight, still allowed to shoot back if needed
 			if target then
 				npc:BreakAway(target)
 
-				-- Wait until far enough or timeout
 				local breakStart = tick()
 				repeat
 					task.wait(0.5)
-
-					-- Keep pushing away if still too close
 					if target and core.checkDist(npc.Root, target) < 35 then
 						npc:BreakAway(target)
 					end
-
 				until core.checkDist(npc.Root, target) >= 35
 					or tick() - breakStart > 4
 					or myHuman.Health <= 0
 			end
 
-			-- Now just wait away from battle, still can shoot if attacked
 			local waitStart = tick()
 			repeat
 				task.wait(1)
-
-				-- If enemy pushes into us while waiting, keep backing away
 				if target and core.checkDist(npc.Root, target) < 25 then
 					npc:BreakAway(target)
 				end
-
 			until tick() - waitStart > regroupDuration
 				or myHuman.Health <= 0
 
-			-- Done regrouping, re-engage
 			npc:SetRetreating(false)
+			reengageTS = tick()
 			npc:DrawM4()
 		end
 		task.wait(1)
@@ -379,12 +410,9 @@ end
 local function attackLogic()
 	npc:UpdateFace("Attacking")
 
-	local distance = core.checkDist(myRoot,npc:GetTarget())
+	local distance = core.checkDist(myRoot, npc:GetTarget())
 	if distance > meleeRange then
-
-		-- If there is a cluster of enemies far enough away throw grenade.
-		-- 5/20/22 added randomness, probably gotta tweak
-		if npc:CheckClusterAtTarget() and distance < 100 and distance > 40 and npc:GetGrenadeCool() and math.random(10) == 1  then
+		if npc:CheckClusterAtTarget() and distance < 100 and distance > 40 and npc:GetGrenadeCool() and math.random(10) == 1 then
 			npc:ThrowGrenade(npc:GetTarget())
 		elseif npc:GetM4Equipped() then
 			if npc:FacingTarget() and npc:CheckShot() then
@@ -399,15 +427,13 @@ local function attackLogic()
 	end
 end
 
-local suppressTS = 0
-local suppressDuration = 3 -- how long to suppress in seconds
+local suppressDuration = 3
 
 local function canSuppress()
-	-- Only suppress if we recently lost sight and have allies
 	local timeSinceSeen = tick() - npc:GetTargetLastSeen()
-	return timeSinceSeen < 5 
-		and timeSinceSeen > 0.5 -- small delay before suppressing
-		and #npc:GetActiveAllies() > 0 -- only bother if allies can take advantage
+	return timeSinceSeen < 5
+		and timeSinceSeen > 0.5
+		and #npc:GetActiveAllies() > 0
 		and npc:GetM4Equipped()
 		and not npc:GetReloading()
 end
@@ -424,15 +450,11 @@ local function suppress()
 
 		npc.BodyRotate.Enabled = true
 		npc.BodyRotate.CFrame = CFrame.new(myRoot.Position, Vector3.new(
-			lastKnown.X,
-			myRoot.Position.Y,
-			lastKnown.Z
+			lastKnown.X, myRoot.Position.Y, lastKnown.Z
 			))
 
 		local sprayPos = lastKnown + Vector3.new(
-			math.random(-5, 5),
-			math.random(0, 3),
-			math.random(-5, 5)
+			math.random(-5, 5), math.random(0, 3), math.random(-5, 5)
 		)
 
 		npc:FireOnce(sprayPos)
@@ -448,12 +470,16 @@ local function attackLoop()
 			npc:UpdateFace("Hunting")
 
 			if npc:GetRetreating() then
-				-- While retreating, only shoot if something is right on top of us
-				if npc:CheckSightToTarget() and npc:CheckTarget() 
+				if npc:CheckSightToTarget() and npc:CheckTarget()
 					and core.checkDist(myRoot, npc:GetTarget()) < 25 then
 					if npc:FacingTarget() and npc:CheckShot() then
 						npc:Shoot(npc:GetTarget())
 					end
+				end
+			elseif currentlyHolding then
+				-- During hold, keep M4 drawn and ready but don't attack or lower
+				if not npc:GetM4Equipped() then
+					npc:DrawM4()
 				end
 			elseif npc:CheckSightToTarget() and npc:CheckTarget() and core.checkDist(myRoot, npc:GetTarget()) < mySettings.M4.Range.Value then
 				attackLogic()
@@ -477,22 +503,14 @@ task.spawn(movementLoop)
 task.spawn(aimingLoop)
 task.spawn(regroupLoop)
 
--- Soldier COMMs
--- Found out you can't pass tables with metamethods using this.
 marine.Query.OnInvoke = function()
 	local cleanNPC = {}
-
 	cleanNPC.Root = npc.Root
-
 	return cleanNPC
 end
 
 myHuman.Died:Connect(function()
-
---	npc.Torso.AssemblyLinearVelocity  = Vector3.new(math.random(-25,25),math.random(50,75),math.random(-25,25))
-
 	diedSound:Play()
-
 	npc:YieldM4()
 	npc:UpdateFace("Dead")
 
@@ -503,7 +521,7 @@ myHuman.Died:Connect(function()
 
 	for i,v in ipairs(marine:GetDescendants()) do
 		if v:IsA("BasePart") or v:IsA("Decal") then
-			game:GetService("TweenService"):Create(v,TweenInfo.new(0.2),{Transparency = 1}):Play()
+			game:GetService("TweenService"):Create(v, TweenInfo.new(0.2), {Transparency = 1}):Play()
 		end
 	end
 
@@ -512,21 +530,21 @@ myHuman.Died:Connect(function()
 end)
 
 local oldHealth = myHuman.Health
-local soundSpeeds = {0.9,0.95,1,1.05,1.1}
+local soundSpeeds = {0.9, 0.95, 1, 1.05, 1.1}
 myHuman.HealthChanged:Connect(function(health)
 	if health < oldHealth and hurtSound.IsPlaying == false then
 		npc:SetTookDamage(true)
-		
+
 		if math.random(3) == 1 then
 			hurtSound.PlaybackSpeed = soundSpeeds[math.random(#soundSpeeds)]
 			hurtSound:Play()
 		end
-		
+
 		task.spawn(function()
 			npc:UpdateFace("Hurt")
 			task.wait(1)
 			if myHead:FindFirstChild("faceHurt") then
-				npc:UpdateFace(npc:GetMood(),true)
+				npc:UpdateFace(npc:GetMood(), true)
 			end
 		end)
 	end
