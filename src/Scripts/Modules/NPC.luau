@@ -181,14 +181,6 @@ end
 function NPC:CheckSight(target)
 	
 	local ignoreList = {self.Instance}
-	if self.Vehicle and self.Vehicle:IsInVehicle() then
-		table.insert(ignoreList,self.Vehicle.Instance)
-	end
-	
-	local enemyTargetVehicle = self:GetTargetVehicle()
-	if enemyTargetVehicle then
-		table.insert(ignoreList, enemyTargetVehicle)
-	end
 	
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterDescendantsInstances = ignoreList
@@ -213,15 +205,8 @@ end
 function NPC:CheckShot()
 	local raycastParams = RaycastParams.new()
 	local ignoreList = {self.Instance}
-	
-	local enemyTargetVehicle = self:GetTargetVehicle()
-	if enemyTargetVehicle then
-		table.insert(ignoreList, enemyTargetVehicle)
-	end
 
 	raycastParams.FilterDescendantsInstances = ignoreList
-	
-	
 	
 	local dist = Core.checkDist(self.Root,self:GetTarget())
 	local result1 = workspace:Raycast(self.M4.Barrel.WorldPosition,(self:GetTarget().Position - self.M4.Barrel.WorldPosition).Unit*dist,raycastParams)

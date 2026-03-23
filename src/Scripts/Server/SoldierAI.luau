@@ -37,7 +37,6 @@ local combat = require(modules.Combat)
 local targeting = require(modules.Target)
 local movement = require(modules.Movement)
 local debugger = require(modules.Debug)
-local pathing = require(modules.Pathing)
 local NPC = require(modules.NPC)
 
 ------Body Variables------
@@ -72,20 +71,7 @@ local function movementLogic(target)
 		idleIndex = 5 --100
 	end
 
-	-- Vehicle logic first
-	if npc.Vehicle and npc.Vehicle:IsInVehicle() and npc.Vehicle:Validate() then
-		vehicleLogic(targetDist)
-
-	elseif (targetDist > 50 or not canSee) and (myRoot.Position.Y < target.Position.Y-10 or idleIndex <= 0) then
-		-- This case we need to either drive to the target or pathfind to it. 
-
-		if core.runAtTS("SoldierAICheckForVehicle", 5) and targetDist > npc.Settings.Vehicle.MinDrivingDist.Value and npc:CanEnterVehicle() then
-			getVehicleSpot(targetDist)
-		else
-			npc:PathToLocation(target)
-		end
-
-	elseif (targetDist > 30 or not canSee) and core.checkPotentialSight(target) then
+	if (targetDist > 30 or not canSee) and core.checkPotentialSight(target) then
 		npc:SlowAdvance()
 		task.wait(0.3)
 
@@ -201,12 +187,6 @@ local function searchTargetLoop()
 			npc:GetIncomingAttackers()
 		end
 
-		-- Keep track of what vehicle the target is potentially using.
-		-- We need to know so we can ignore it during raycasting.
-		if npc:GetTarget() and core.runAtTS("UpdateEnemyVehicle",2) then
-			npc:SetTargetVehicle(core.getEnemyVehicleInstance(npc:GetTarget()))
-		end
-
 		-- Find a new target if the current one is not valid
 		-- Also find a new target if we are hurt. This should make the marine look more reactionary to damage. 
 		if not npc:CheckTarget() or npc:GetTookDamage() then
@@ -264,27 +244,6 @@ local function attackLogic()
 	end
 end
 
-local function turretLogic()
-	if npc:CheckTarget() and npc.Vehicle:CheckSightTurret() then
-		npc.Vehicle:StartAimingTurret()
-		while npc.Vehicle.Aiming and not npc.Vehicle.Shooting do
-			task.wait(0.1)
-			if npc.Vehicle:CheckAim() and npc.Vehicle:IsTargetInRange() then
-				npc.Vehicle:StartShootingTurret()
-			end
-		end
-
-		if not npc:CheckSightToTarget(npc.Settings.Vehicle.MaxTurretRange.Value) then
-			-- Once we start shooting don't stop until we can't see it.
-			-- I don't care about hitting every shot it's a machine gun.
-			npc.Vehicle:StopShootingTurret()
-		end
-	else
-		npc.Vehicle:StopShootingTurret()
-	end
-	task.wait(1)
-end
-
 local suppressTS = 0
 local suppressDuration = 3 -- how long to suppress in seconds
 
@@ -329,29 +288,21 @@ local function suppress()
 end
 
 local function attackLoop()
-	while myHuman.Health>0 do
+	while myHuman.Health > 0 do
+		if npc:GetTarget() then
+			npc:UpdateFace("Hunting")
 
-		if not npc.Vehicle or not npc.Vehicle:IsInVehicle() then
-			if npc:GetTarget() then
-				npc:UpdateFace("Hunting")
-
-				-- If we have a target we can see
-				if npc:CheckSightToTarget() and npc:CheckTarget() and core.checkDist(myRoot, npc:GetTarget()) < mySettings.M4.Range.Value then
-					attackLogic()
-				elseif canSuppress() then
-					suppress()
-				elseif npc:GetM4Equipped() and not npc:GetM4Aimed() then
-					npc:LowerM4()
-				end
-			else
-				task.wait(2)
-				npc:UpdateFace("Idle")
-				npc:YieldWeapons()
+			if npc:CheckSightToTarget() and npc:CheckTarget() and core.checkDist(myRoot, npc:GetTarget()) < mySettings.M4.Range.Value then
+				attackLogic()
+			elseif canSuppress() then
+				suppress()
+			elseif npc:GetM4Equipped() and not npc:GetM4Aimed() then
+				npc:LowerM4()
 			end
-		elseif npc.Vehicle.Role == "Gunner" then 
-			turretLogic()
 		else
-			task.wait(1)
+			task.wait(2)
+			npc:UpdateFace("Idle")
+			npc:YieldWeapons()
 		end
 		task.wait(0.3)
 	end
@@ -366,14 +317,6 @@ task.spawn(aimingLoop)
 -- Found out you can't pass tables with metamethods using this.
 marine.Query.OnInvoke = function()
 	local cleanNPC = {}
-	if npc.Vehicle then
-		cleanNPC.Vehicle = {}
-		cleanNPC.Vehicle.Instance = npc.Vehicle.Instance
-		cleanNPC.Vehicle.Role = npc.Vehicle.Role
-		cleanNPC.Vehicle.InVehicle = npc.Vehicle:IsInVehicle()
-	else
-		cleanNPC.Vehicle = nil
-	end
 
 	cleanNPC.Root = npc.Root
 
@@ -381,13 +324,6 @@ marine.Query.OnInvoke = function()
 end
 
 myHuman.Died:Connect(function()
-	if npc.Vehicle then
-		if npc.Vehicle:IsInVehicle() then
-			npc.Vehicle:Exit()
-		else
-			npc.Vehicle:Destroy()
-		end
-	end
 
 	npc.Torso.AssemblyLinearVelocity  = Vector3.new(math.random(-25,25),math.random(50,75),math.random(-25,25))
 
