@@ -74,15 +74,7 @@ end
 
 function targeting:SetTarget(target)
 	self.Target.Instance = target
-end
-
-function targeting:GetTargetVehicle()
-	return self.Target.Vehicle
-end
-
-function targeting:SetTargetVehicle(vehicle: Instance)
-	self.Target.Vehicle = vehicle
-end
+end 
 
 function targeting:SetTargetLastSeen()
 	self.Target.LastSeen = tick()
@@ -136,26 +128,6 @@ function targeting:CheckSightToTarget(dist: IntValue)
 		end
 	end
 	return false
-end
-
-function targeting:GetTargetPoints()
-	local points = 8
-	local radius = self.Settings.Vehicle.MinDrivingDist.Value * 0.75
-	local drivablePoints = {}
-	for i = 1, points do
-		local angle = i * (2 * math.pi / points)
-		local x = math.cos(angle) * radius
-		local z = math.sin(angle) * radius
-		local position = self:GetTarget().Position + Vector3.new(x,3,z)
-
-		local result = workspace:Raycast(position, Vector3.new(0,-10,0))
-
-		if core.isLine(position, self:GetTarget().Position, {self.Instance, self:GetTarget().Parent}) and result then
-			position = Vector3.new(position.X, result.Position.Y + 0.5, position.Z)
-			table.insert(drivablePoints, position)
-		end
-	end
-	return drivablePoints
 end
 
 function targeting:GetIncomingAttackers()

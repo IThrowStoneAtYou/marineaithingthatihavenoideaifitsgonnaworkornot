@@ -1,7 +1,5 @@
 local Formulas = {}
 
--- nerd stuff
-
 function Formulas.getAimVector3(myRoot, target, bulletVel)
 	
 	local dist = (myRoot.Position - target.Position).Magnitude
@@ -76,8 +74,8 @@ function Formulas.CalculateArc(handle: Instance,targetPos: Vector3, speed: IntVa
 	local new_delta = Vector3.new(delta.x, 0, delta.z)
 	delta = new_delta
 
-	local dx = delta.Magnitude
-	local unit_delta = delta.Unit
+	local dx = delta.magnitude
+	local unit_delta = delta.unit
 
 	-- acceleration due to gravity in RBX units
 	local g = (-9.81 * 20)

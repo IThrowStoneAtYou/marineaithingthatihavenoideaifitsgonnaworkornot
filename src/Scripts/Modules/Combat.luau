@@ -178,6 +178,117 @@ function linearDropOff(distance) -- credit to dthecoolest for damage fall off ca
 end
 
 function combat.pushBullet(npc, bullet, speed, iterations)
+	if speed == nil or iterations == nil then
+		speed = 20
+		iterations = 20
+	end
+
+	-- Guaranteed cleanup regardless of what happens below
+	debrisService:AddItem(bullet, 10)
+
+	local params = RaycastParams.new()
+	params.FilterDescendantsInstances = {marine, workspace.Terrain, ignoreFolder}
+
+	local startPosition = barrel.WorldPosition
+
+	task.spawn(function()
+		while true do
+			if not bullet or not bullet.Parent then break end
+
+			local position = bullet.Position
+			local nextPosition = Vector3.new(0, 0, speed)
+			local result = workspace:Raycast(position, bullet.CFrame.LookVector * speed, params)
+
+			if result and result.Instance.Name ~= "Bullet" then
+				local currentNormal = bullet.CFrame.LookVector
+				bullet.CFrame = CFrame.new(result.Position)
+				removeBullet(bullet)
+
+				local human = core.getHuman(result.Instance.Parent)
+				impact.WorldPosition = result.Position
+
+				if human and human.Health > 0 then
+					local distance = (result.Position - startPosition).Magnitude
+					local damageToTake = linearDropOff(distance)
+					core.applyDamage(human, damageToTake)
+
+					if human.Health <= 0 then
+						npc:FindTarget()
+					end
+
+				elseif not human then
+					local newBulletHole = combat.getBulletHole(result.Instance)
+					if newBulletHole then
+						newBulletHole.CFrame = CFrame.new(newBulletHole.Position, newBulletHole.Position + result.Normal)
+						newBulletHole.Position = result.Position
+						debrisService:AddItem(newBulletHole, 5)
+
+						if result.Instance.Material ~= Enum.Material.Metal and result.Instance.Material ~= Enum.Material.DiamondPlate then
+							local debrisAttachment = newBulletHole.DebrisAttachment
+							debrisAttachment.TinyDustParticles:Emit(15)
+							debrisAttachment.MainDustEffect:Emit(15)
+							debrisAttachment.SmokeEffect:Emit(15)
+
+							if debrisOnHit then
+								for i = 1, math.random(2, 3) do
+									local chunk = Instance.new("Part")
+									chunk.Color = result.Instance.Color
+									chunk.Material = result.Instance.Material
+									local size = math.random(5) / 20
+									chunk.Size = Vector3.new(size, size, size)
+									chunk.CFrame = CFrame.new(result.Position)
+									chunk.Anchored = false
+									chunk.AssemblyLinearVelocity = Vector3.new(math.random(-20,20), math.random(10,20), math.random(-20,20))
+									chunk.Parent = workspace
+									debrisService:AddItem(chunk, 1)
+								end
+							end
+						end
+					end
+				end
+
+				if result.Material == Enum.Material.Metal then
+					impact.Metal:Play()
+					impact.Spark:Emit(10)
+					impact.FlashEffect:Emit(10)
+					impact.FlashInnerEffect:Emit(5)
+
+					if canRicochet() then
+						local newBullet = combat.getBullet()
+						local reflect = reflectBullet(result, currentNormal)
+						newBullet.CFrame = CFrame.new(Vector3.new(), reflect)
+						newBullet.Position = result.Position
+						newBullet.CFrame = newBullet.CFrame * CFrame.new(0, 0, -0.01)
+						combat.pushBullet(marine, newBullet, speed - speedDecrease, ricochetIterations)
+					end
+
+				elseif human then
+					impact.Hit:Play()
+					impact.BloodCloud:Emit(30)
+					impact.BloodParticles:Emit(30)
+				else
+					impact.Miss:Play()
+				end
+
+				break
+
+			else
+				bullet.CFrame = bullet.CFrame * CFrame.new(-nextPosition)
+			end
+
+			iterations -= 1
+			if iterations < 0 then
+				removeBullet(bullet)
+				break
+			end
+
+			task.wait()
+		end
+	end)
+end
+
+--[[
+function combat.pushBullet(npc, bullet, speed, iterations)
 	--Testing removing marine from ignore list
 	--Magic fastcast
 
@@ -297,6 +408,7 @@ function combat.pushBullet(npc, bullet, speed, iterations)
 		removeBullet(bullet)
 	end
 end
+--[[]]
 
 function checkSight(target)
 	local canSee = false
@@ -377,18 +489,11 @@ function combat:Shoot(target)
 
 			--bullet.CFrame = m4.CFrame * CFrame.new(0,0.2,-2.5) --z: 0.5
 			for i = 1, bulletsPerShot, 1 do
-				local bulletCoroutine = coroutine.create(function()
+				task.spawn(function()
 					local bullet = combat.getBullet()
-					--	runService.Heartbeat:Wait() --Give bullet time to render from barrel -- (me in the future: figure out this is useless)
-
-					combat:applySpread(bullet,barrel.WorldCFrame.LookVector)
-
-					--	runService.Heartbeat:Wait() --Give bullet time to render from barrel
-
+					combat:applySpread(bullet, barrel.WorldCFrame.LookVector)
 					combat.pushBullet(self, bullet, bulletSpeed, iterations)
 				end)
-
-				coroutine.resume(bulletCoroutine)
 			end
 		end
 

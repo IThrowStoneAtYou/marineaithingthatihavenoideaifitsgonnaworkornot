@@ -31,11 +31,7 @@ function NPC.new(o)
 	o.Knife = o.Instance.Knife
 	o.StabAnimation = o.Instance.Stab
 	o.StabPunchAnimation = o.Instance.StabPunch
-	
-	-- Shoulder hinges for when in the gunner or driver positions
-	o.ShoulderHingeR = o.Torso.ShoulderHingeR
-	o.ShoulderHingeL = o.Torso.ShoulderHingeL
-	
+
 	o.M4 = o.Instance.M4
 	o.Grenade = o.Instance.Grenade
 	o.BodyRotate = o.Root.AlignOrientation
@@ -44,7 +40,6 @@ function NPC.new(o)
 	o.Target.Root = nil
 	o.Target.LastSeen = tick()
 	o.GoingHome = false
-	o.Vehicle = nil
 	o.Team = o.Settings.Team.Value
 	o.M4Equipped = false
 	o.M4Lowered = false
@@ -181,20 +176,6 @@ end
 
 function NPC:GetM4Equipped()
 	return self.M4Equipped
-end
-
--- Keeps track of when we left a vehicle. 
-function NPC:SetVehicleTimestamp()
-	self.LastEnteredVehicle = Core.tick()
-end
-
--- Ensures we don't enter / exit a vehicle too quickly. 
-function NPC:CanEnterVehicle()
-	return not self.LastEnteredVehicle or Core.tick() - self.LastEnteredVehicle > self.Settings.Vehicle.Cooldown.Value
-end
-
-function NPC:CanExitVehicle()
-	return not self.LastEnteredVehicle or Core.tick() - self.LastEnteredVehicle > self.Settings.Vehicle.Cooldown.Value
 end
 
 function NPC:CheckSight(target)
